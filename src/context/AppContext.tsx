@@ -5,8 +5,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Cabin, Reservation, Review, Category, Feature, OutgoingEmail } from '../types';
-import { LocalDatabase } from '../services/database';
 import { ApiClient } from '../services/api';
+
+export type BackendStatus = 'online' | 'degraded' | 'offline';
 
 interface SearchCriteria {
   city: string;
@@ -15,15 +16,15 @@ interface SearchCriteria {
   guests: number;
 }
 
-export type ViewState = 
-  | 'home' 
-  | 'detail' 
-  | 'search' 
-  | 'login' 
-  | 'register' 
-  | 'profile' 
-  | 'reservations' 
-  | 'favorites' 
+export type ViewState =
+  | 'home'
+  | 'detail'
+  | 'search'
+  | 'login'
+  | 'register'
+  | 'profile'
+  | 'reservations'
+  | 'favorites'
   | 'admin';
 
 interface AppContextType {
@@ -41,36 +42,48 @@ interface AppContextType {
   sentEmails: OutgoingEmail[];
   adminMessage: string | null; // Top required message if redirecting to login
   adminSubTab: 'properties' | 'categories' | 'features' | 'users' | 'reservations';
-  
+
   // Actions
   setView: (view: ViewState, cabinId?: string | null) => void;
   setCategoryFilter: (catId: string | null) => void;
   setSearch: (criteria: Partial<SearchCriteria>) => void;
   clearSearch: () => void;
-  register: (user: Omit<User, 'id'>) => Promise<User>;
-  login: (email: string) => Promise<User>;
+  register: (user: Omit<User, 'id'> & { password?: string }) => Promise<User>;
+  login: (email: string, password?: string) => Promise<User>;
   logout: () => void;
-  toggleFavorite: (cabinId: string) => void;
+  toggleFavorite: (cabinId: string) => Promise<void>;
   addReservation: (reservation: Omit<Reservation, 'id' | 'createdAt'>) => Promise<Reservation>;
   addReview: (review: Omit<Review, 'id' | 'date'>) => Promise<Review>;
   refreshEmails: () => void;
   setAdminMessage: (msg: string | null) => void;
   setAdminSubTab: (tab: 'properties' | 'categories' | 'features' | 'users' | 'reservations') => void;
-  
+
   // DB reloads for admin edits
-  reloadDatabase: () => void;
+  reloadDatabase: () => Promise<void>;
+  refreshUser: (user: User | null) => void;
+  backendStatus: BackendStatus;
+  backendMessage: string | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(LocalDatabase.getLoggedInUser());
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const storedUser = window.localStorage.getItem('rr_logged_in_user');
+    if (!storedUser) return null;
+    try {
+      return JSON.parse(storedUser) as User;
+    } catch {
+      return null;
+    }
+  });
   const [currentView, setCurrentViewState] = useState<ViewState>('home');
   const [selectedCabinId, setSelectedCabinId] = useState<string | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [adminSubTab, setAdminSubTab] = useState<'properties' | 'categories' | 'features' | 'users' | 'reservations'>('properties');
-  
+
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria>({
     city: '',
     checkIn: '',
@@ -85,33 +98,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [allReservations, setAllReservations] = useState<Reservation[]>([]);
   const [allReviews, setAllReviews] = useState<Review[]>([]);
   const [sentEmails, setSentEmails] = useState<OutgoingEmail[]>([]);
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>('online');
+  const [backendMessage, setBackendMessage] = useState<string | null>(null);
 
-  // Load database snapshot
-  const reloadDatabase = () => {
-    setCabins(LocalDatabase.getCabins());
-    setCategories(LocalDatabase.getCategories());
-    setFeatures(LocalDatabase.getFeatures());
-    setAllReservations(LocalDatabase.getReservations());
-    setAllReviews(LocalDatabase.getReviews());
-    setSentEmails(LocalDatabase.getEmails());
-    
-    if (user) {
-      setFavorites(LocalDatabase.getFavoritesByUserId(user.id));
-    } else {
+  const reloadDatabase = async () => {
+    try {
+      const userId = user?.id;
+      const [fetchedCabins, fetchedCategories, fetchedFeatures] = await Promise.all([
+        ApiClient.getCabinsSearch(),
+        ApiClient.getCategories(),
+        ApiClient.getFeatures(),
+      ]);
+
+      const fetchedReservations = userId ? await ApiClient.getReservationsByUserId(userId) : [];
+      const fetchedReviews: Review[] = [];
+
+      setBackendStatus('online');
+      setBackendMessage(null);
+      setCabins(fetchedCabins);
+      setCategories(fetchedCategories);
+      setFeatures(fetchedFeatures);
+      setAllReservations(fetchedReservations);
+      setAllReviews(fetchedReviews);
+      setSentEmails([]);
+
+      if (userId) {
+        const nextFavorites = await ApiClient.getFavoritesByUserId(userId);
+        setFavorites(nextFavorites);
+      } else {
+        setFavorites([]);
+      }
+    } catch (error) {
+      console.error('Unable to reload backend data.', error);
+      const message = error instanceof Error ? error.message : 'El backend no está respondiendo en este momento.';
+      setBackendStatus('offline');
+      setBackendMessage(`No se pudo cargar la información del backend. ${message}`);
+      setCabins([]);
+      setCategories([]);
+      setFeatures([]);
+      setAllReservations([]);
+      setAllReviews([]);
+      setSentEmails([]);
       setFavorites([]);
     }
   };
 
   useEffect(() => {
-    reloadDatabase();
+    void reloadDatabase();
 
-    // Listen to simulated email system
-    const handleEmailSent = () => {
-      setSentEmails(LocalDatabase.getEmails());
-    };
-    window.addEventListener('rr_email_sent', handleEmailSent);
     return () => {
-      window.removeEventListener('rr_email_sent', handleEmailSent);
+      // No-op: the app now relies on backend responses only.
     };
   }, [user]);
 
@@ -138,54 +174,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const register = async (userInfo: Omit<User, 'id'>) => {
+  const refreshUser = (nextUser: User | null) => {
+    setUser(nextUser);
+    if (nextUser) {
+      localStorage.setItem('rr_logged_in_user', JSON.stringify(nextUser));
+    } else {
+      localStorage.removeItem('rr_logged_in_user');
+    }
+  };
+
+  const register = async (userInfo: Omit<User, 'id'> & { password?: string }) => {
     const newUser = await ApiClient.register(userInfo);
-    reloadDatabase();
+    await reloadDatabase();
     return newUser;
   };
 
-  const login = async (email: string) => {
-    const { user: loggedInUser } = await ApiClient.login(email);
-    setUser(loggedInUser);
-    setFavorites(LocalDatabase.getFavoritesByUserId(loggedInUser.id));
-    reloadDatabase();
+  const login = async (email: string, password?: string) => {
+    const { user: loggedInUser } = await ApiClient.login(email, password);
+    refreshUser(loggedInUser);
+    const nextFavorites = await ApiClient.getFavoritesByUserId(loggedInUser.id);
+    setFavorites(nextFavorites);
+    await reloadDatabase();
     return loggedInUser;
   };
 
   const logout = () => {
     ApiClient.clearToken();
-    LocalDatabase.logoutUser();
-    setUser(null);
+    refreshUser(null);
     setFavorites([]);
-    reloadDatabase();
+    void reloadDatabase();
     setCurrentViewState('home');
   };
 
-  const toggleFavorite = (cabinId: string) => {
+  const toggleFavorite = async (cabinId: string) => {
     if (!user) {
       setAdminMessage("Por favor, inicia sesión para poder guardar tus cabañas favoritas.");
       setCurrentViewState('login');
       return;
     }
-    LocalDatabase.toggleFavorite(user.id, cabinId);
-    setFavorites(LocalDatabase.getFavoritesByUserId(user.id));
-    reloadDatabase();
+    const nextFavorites = await ApiClient.toggleFavorite(user.id, cabinId);
+    setFavorites(nextFavorites);
+    await reloadDatabase();
   };
 
   const addReservation = async (reservation: Omit<Reservation, 'id' | 'createdAt'>) => {
     const res = await ApiClient.createReservation(reservation);
-    reloadDatabase();
+    await reloadDatabase();
     return res;
   };
 
   const addReview = async (review: Omit<Review, 'id' | 'date'>) => {
     const rev = await ApiClient.createReview(review);
-    reloadDatabase();
+    await reloadDatabase();
     return rev;
   };
 
   const refreshEmails = () => {
-    setSentEmails(LocalDatabase.getEmails());
+    setSentEmails([]);
   };
 
   return (
@@ -217,7 +262,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshEmails,
       setAdminMessage,
       setAdminSubTab,
-      reloadDatabase
+      reloadDatabase,
+      refreshUser,
+      backendStatus,
+      backendMessage
     }}>
       {children}
     </AppContext.Provider>

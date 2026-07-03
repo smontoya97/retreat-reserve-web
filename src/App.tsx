@@ -9,6 +9,7 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { EmailLoggerTray } from './components/EmailLoggerTray';
+import { BackendStatusBanner } from './components/BackendStatusBanner';
 
 // Pages
 import { Home } from './pages/Home';
@@ -20,7 +21,7 @@ import { Favorites } from './pages/Favorites';
 import { AdminPanel } from './pages/AdminPanel';
 
 const AppContent: React.FC = () => {
-  const { currentView } = useApp();
+  const { currentView, backendStatus, backendMessage, reloadDatabase } = useApp();
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -48,6 +49,12 @@ const AppContent: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-white">
       {/* 24/7 Fixed header across all screens (Historial 1) */}
       <Header />
+
+      <BackendStatusBanner
+        status={backendStatus}
+        message={backendMessage}
+        onRetry={() => { void reloadDatabase(); }}
+      />
 
       {/* Main container with branding background colors */}
       <main className="flex-grow bg-white min-h-[calc(100vh-200px)] animate-in fade-in duration-300">

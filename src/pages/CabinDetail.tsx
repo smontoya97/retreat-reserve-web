@@ -10,7 +10,7 @@ import {
   ArrowLeft, Star, Heart, Share2, Wifi, Utensils, Flame, Car, Tv, Compass, Snowflake, ShieldCheck, 
   Calendar, Users, AlertTriangle, CheckCircle2, X, Send, MapPin, ChevronLeft, ChevronRight, MessageCircle
 } from 'lucide-react';
-import { LocalDatabase } from '../services/database';
+import { ApiClient } from '../services/api';
 
 export const CabinDetail: React.FC = () => {
   const { 
@@ -21,6 +21,7 @@ export const CabinDetail: React.FC = () => {
     toggleFavorite, 
     categories, 
     features,
+    cabins,
     addReservation,
     addReview,
     allReservations,
@@ -30,8 +31,8 @@ export const CabinDetail: React.FC = () => {
 
   const cabin = useMemo(() => {
     if (!selectedCabinId) return null;
-    return LocalDatabase.getCabinById(selectedCabinId);
-  }, [selectedCabinId]);
+    return cabins.find((item) => item.id === selectedCabinId) || null;
+  }, [cabins, selectedCabinId]);
 
   const bookingFormRef = useRef<HTMLDivElement>(null);
 
@@ -246,7 +247,7 @@ export const CabinDetail: React.FC = () => {
     }
 
     // Verify availability check (Story 30 override)
-    const available = LocalDatabase.checkAvailability(cabin.id, dateIn, dateOut);
+    const available = await ApiClient.checkAvailability(cabin.id, dateIn, dateOut);
     if (!available) {
       setBookingError("⚠️ Las fechas seleccionadas se cruzan con una reserva existente. Por favor consulta el calendario de disponibilidad.");
       return;

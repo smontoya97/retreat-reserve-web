@@ -7,10 +7,10 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { THEME_CLASSES } from '../styles/tokens';
 import { User, Mail, ShieldAlert, Award, Save, Lock, CheckCircle2 } from 'lucide-react';
-import { LocalDatabase } from '../services/database';
+import { ApiClient } from '../services/api';
 
 export const Profile: React.FC = () => {
-  const { user, setView } = useApp();
+  const { user, setView, refreshUser } = useApp();
   const [name, setName] = useState(user?.name || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
   const [success, setSuccess] = useState(false);
@@ -31,7 +31,7 @@ export const Profile: React.FC = () => {
     );
   }
 
-  const handleUpdate = (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess(false);
     setErrorMess('');
@@ -42,10 +42,11 @@ export const Profile: React.FC = () => {
     }
 
     try {
-      LocalDatabase.updateProfile(user.id, {
+      const updatedUser = await ApiClient.updateProfile(user.id, {
         name: name.trim(),
         lastName: lastName.trim()
       });
+      refreshUser({ ...user, ...updatedUser });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
@@ -53,32 +54,37 @@ export const Profile: React.FC = () => {
     }
   };
 
-  const handlePassUpdate = (e: React.FormEvent) => {
+  const handlePassUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setPassSuccess(false);
-    
+
     if (newPass.length < 6) {
       alert("La nueva contraseña debe tener al menos 6 caracteres.");
       return;
     }
 
-    alert("¡Contraseña actualizada con éxito! Se ha guardado tu cambio de forma segura.");
-    setCurrPass('');
-    setNewPass('');
-    setPassSuccess(true);
-    setTimeout(() => setPassSuccess(false), 3000);
+    try {
+      await ApiClient.changePassword(user.id, currPass, newPass);
+      alert("¡Contraseña actualizada con éxito! Se ha guardado tu cambio de forma segura.");
+      setCurrPass('');
+      setNewPass('');
+      setPassSuccess(true);
+      setTimeout(() => setPassSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || "No se pudo actualizar la contraseña.");
+    }
   };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 space-y-8">
-      
+
       <div>
         <h2 className="font-sans text-2xl font-black text-[#1F2937] tracking-tight">Mi Perfil Personal</h2>
         <p className="text-xs text-gray-500">Administra tus datos de contacto y seguridad para agilizar tus reservas de cabañas.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
+
         {/* Left Stats Info card */}
         <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm text-center space-y-4 h-fit">
           <div className="w-20 h-20 rounded-full bg-[#1F5937] text-white flex items-center justify-center font-bold text-2xl mx-auto border-4 border-emerald-50 shadow-inner">
@@ -107,11 +113,11 @@ export const Profile: React.FC = () => {
 
         {/* Right Details update Forms */}
         <div className="md:col-span-2 space-y-6">
-          
+
           {/* PROFILE DATA FORM */}
           <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm space-y-4">
             <h4 className="font-bold text-sm text-[#1F2937] border-b border-gray-100 pb-2">Información de Cuenta</h4>
-            
+
             {success && (
               <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border border-emerald-200 flex items-center gap-1.5 font-bold">
                 <CheckCircle2 size={16} />
@@ -128,8 +134,8 @@ export const Profile: React.FC = () => {
                 <label className="text-[10px] font-bold text-gray-400 uppercase">Nombre</label>
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                   <User size={14} className="text-gray-400 mr-2 shrink-0" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="text-xs text-[#1F2937] bg-transparent focus:outline-none w-full"
@@ -142,8 +148,8 @@ export const Profile: React.FC = () => {
                 <label className="text-[10px] font-bold text-gray-400 uppercase">Apellido</label>
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                   <User size={14} className="text-gray-400 mr-2 shrink-0" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     className="text-xs text-[#1F2937] bg-transparent focus:outline-none w-full"
@@ -166,7 +172,7 @@ export const Profile: React.FC = () => {
           {/* PASSWORD CHANGE FORM */}
           <div className="bg-white border border-gray-200 p-6 rounded-2xl shadow-sm space-y-4">
             <h4 className="font-bold text-sm text-[#1F2937] border-b border-gray-100 pb-2">Cambiar Contraseña</h4>
-            
+
             {passSuccess && (
               <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border border-emerald-200 flex items-center gap-1.5 font-bold">
                 <CheckCircle2 size={16} />
@@ -180,8 +186,8 @@ export const Profile: React.FC = () => {
                   <label className="text-[10px] font-bold text-gray-400 uppercase">Contraseña Actual</label>
                   <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                     <Lock size={14} className="text-gray-400 mr-2 shrink-0" />
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       value={currPass}
                       onChange={(e) => setCurrPass(e.target.value)}
                       placeholder="******"
@@ -195,8 +201,8 @@ export const Profile: React.FC = () => {
                   <label className="text-[10px] font-bold text-gray-400 uppercase">Nueva Contraseña</label>
                   <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                     <Lock size={14} className="text-gray-400 mr-2 shrink-0" />
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
                       placeholder="Mínimo 6 caracteres"

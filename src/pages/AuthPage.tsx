@@ -12,9 +12,10 @@ import { Logo } from '../components/Logo';
 export const AuthPage: React.FC = () => {
   const { login, register, adminMessage, setAdminMessage, setView } = useApp();
   const [isLoginView, setIsLoginView] = useState(true);
-  
+
   // Login Form States
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('password123');
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Register Form States
@@ -50,7 +51,7 @@ export const AuthPage: React.FC = () => {
     }
 
     try {
-      await login(trimmedEmail);
+      await login(trimmedEmail, loginPassword);
       // Clean up warnings
       setAdminMessage(null);
       // Redirect home or back
@@ -98,16 +99,17 @@ export const AuthPage: React.FC = () => {
         name: trimmedName,
         lastName: trimmedLastName,
         email: trimmedEmail,
-        role: 'user'
+        role: 'user',
+        password: regPassword
       });
-      
+
       setRegSuccess(true);
       // Clear fields
       setRegName('');
       setRegLastName('');
       setRegEmail('');
       setRegPassword('');
-      
+
       // Auto toggle view switch
       setTimeout(() => {
         setIsLoginView(true);
@@ -122,7 +124,7 @@ export const AuthPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8" style={{ backgroundImage: 'radial-gradient(#F4E9D9 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
-      
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md space-y-4">
         <Logo mode="light" layout="vertical" iconSize={60} className="mx-auto" />
         <p className="text-center text-xs text-gray-500 uppercase tracking-widest font-bold">
@@ -131,7 +133,7 @@ export const AuthPage: React.FC = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        
+
         {/* Reservation booking warning banner (Historial 30) */}
         {adminMessage && (
           <div className="mb-4 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-xs text-xs text-amber-800 animate-bounce">
@@ -147,7 +149,7 @@ export const AuthPage: React.FC = () => {
 
         {/* Form containerbox */}
         <div className="bg-white py-8 px-4 shadow-xl rounded-3xl sm:px-10 border border-gray-100 space-y-6">
-          
+
           {isLoginView ? (
             /* --- LOGIN FORM --- */
             <form onSubmit={handleLoginSubmit} className="space-y-4">
@@ -166,8 +168,8 @@ export const AuthPage: React.FC = () => {
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Correo Electrónico</label>
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Mail size={16} className="text-gray-400 mr-2.5 shrink-0" />
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="maria@ejemplo.com o admin@retreatreserve.com"
@@ -184,11 +186,12 @@ export const AuthPage: React.FC = () => {
                 </div>
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Lock size={16} className="text-gray-400 mr-2.5 shrink-0" />
-                  <input 
+                  <input
                     type="password"
                     placeholder="Contraseña segura"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     className="text-xs text-[#1F2937] bg-transparent focus:outline-none w-full"
-                    defaultValue="password123"
                   />
                 </div>
               </div>
@@ -204,7 +207,7 @@ export const AuthPage: React.FC = () => {
           ) : (
             /* --- REGISTER FORM --- */
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
-              
+
               <div className="text-center pb-2">
                 <span className="text-xs bg-lime-50 text-[#8DB600] py-1 px-3 rounded-full font-bold">Crear nueva cuenta</span>
               </div>
@@ -228,8 +231,8 @@ export const AuthPage: React.FC = () => {
                   <label className="text-[10px] font-bold text-gray-500 uppercase">Nombre</label>
                   <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                     <User size={14} className="text-gray-400 mr-2 shrink-0" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
                       placeholder="María"
@@ -243,8 +246,8 @@ export const AuthPage: React.FC = () => {
                   <label className="text-[10px] font-bold text-gray-500 uppercase">Apellido</label>
                   <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                     <User size={14} className="text-gray-400 mr-2 shrink-0" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={regLastName}
                       onChange={(e) => setRegLastName(e.target.value)}
                       placeholder="González"
@@ -259,8 +262,8 @@ export const AuthPage: React.FC = () => {
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Correo Electrónico</label>
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Mail size={16} className="text-gray-400 mr-2.5 shrink-0" />
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="ejemplo@correo.com"
@@ -274,8 +277,8 @@ export const AuthPage: React.FC = () => {
                 <label className="text-[10px] font-bold text-gray-500 uppercase">Contraseña para su Cuenta</label>
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Key size={16} className="text-gray-400 mr-2.5 shrink-0" />
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"

@@ -7,7 +7,7 @@ import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { THEME_CLASSES } from '../styles/tokens';
 import { CalendarRange, Calendar, DollarSign, Trees, XCircle, ChevronRight, Star, ExternalLink, ShieldAlert } from 'lucide-react';
-import { LocalDatabase } from '../services/database';
+import { ApiClient } from '../services/api';
 
 export const Reservations: React.FC = () => {
   const { user, allReservations, cabins, setView, reloadDatabase } = useApp();
@@ -33,12 +33,12 @@ export const Reservations: React.FC = () => {
     return cabins.find(c => c.id === cabinId);
   };
 
-  const handleCancelReservation = (resId: string) => {
+  const handleCancelReservation = async (resId: string) => {
     const confirm = window.confirm("¿Estás completamente seguro de que deseas cancelar esta reserva? Esta acción liberará las fechas inmediatamente.");
     if (confirm) {
       try {
-        LocalDatabase.updateReservationStatus(resId, 'cancelled');
-        reloadDatabase();
+        await ApiClient.updateReservationStatus(resId, 'cancelled');
+        await reloadDatabase();
         alert("Tu reserva fue cancelada exitosamente y las fechas han sido liberadas.");
       } catch (err: any) {
         alert(err.message || "No se pudo procesar la cancelación.");
@@ -66,7 +66,7 @@ export const Reservations: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12 space-y-8">
-      
+
       <div className="flex flex-col sm:row sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-gray-200 pb-5">
         <div>
           <h2 className="font-sans text-2xl font-black text-[#1F2937] tracking-tight flex items-center gap-2">
@@ -74,8 +74,8 @@ export const Reservations: React.FC = () => {
           </h2>
           <p className="text-xs text-gray-500">Consulta los detalles de tus hospedajes contratados, cancela estadías activas, o deja un comentario sobre tus viajes.</p>
         </div>
-        <button 
-          onClick={() => setView('home')} 
+        <button
+          onClick={() => setView('home')}
           className="bg-[#1F5937] hover:bg-[#143B24] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition duration-200 cursor-pointer"
         >
           Explorar Más Cabañas
@@ -89,8 +89,8 @@ export const Reservations: React.FC = () => {
             if (!cabin) return null;
 
             return (
-              <div 
-                key={res.id} 
+              <div
+                key={res.id}
                 className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col md:flex-row gap-6 p-5"
               >
                 {/* Product Thumbnail image left side */}
@@ -101,7 +101,7 @@ export const Reservations: React.FC = () => {
                 {/* Info block middle */}
                 <div className="flex-1 space-y-4 flex flex-col justify-between">
                   <div className="space-y-1.5">
-                    
+
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${getStatusBadgeClass(res.status)}`}>
                         {getStatusLabel(res.status)}
@@ -109,13 +109,13 @@ export const Reservations: React.FC = () => {
                       <span className="text-[10px] text-gray-400 font-mono">Código: RR-{res.id.toUpperCase().split('-')[1]}</span>
                     </div>
 
-                    <h4 
+                    <h4
                       onClick={() => setView('detail', cabin.id)}
                       className="text-base font-black text-[#1F2937] hover:text-[#1F5937] transition-colors leading-tight cursor-pointer"
                     >
                       {cabin.name}
                     </h4>
-                    
+
                     <p className="text-xs text-gray-500">📍 {cabin.city}, {cabin.state}</p>
 
                     {/* Check In / Out grid dates */}
@@ -164,8 +164,8 @@ export const Reservations: React.FC = () => {
                   )}
 
                   {res.status === 'confirmed' && (
-                    <button 
-                      onClick={() => setView('detail', cabin.id)} 
+                    <button
+                      onClick={() => setView('detail', cabin.id)}
                       className="w-full bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-900 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                     >
                       <Star size={13} fill="#D97706" stroke="none" />

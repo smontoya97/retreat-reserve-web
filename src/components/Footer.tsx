@@ -28,7 +28,7 @@ export const Footer: React.FC = () => {
             </div>
             
             <p className="text-emerald-100 text-sm max-w-sm leading-relaxed">
-              Encuentra y reserva cabañas únicas, rodeadas de la belleza natural de México. Diseñadas para una desconexión y reconexión profunda.
+              Encuentra y reserva cabañas únicas, rodeadas de la belleza natural de Colombia. Diseñadas para una desconexión y reconexión profunda.
             </p>
           </div>
 

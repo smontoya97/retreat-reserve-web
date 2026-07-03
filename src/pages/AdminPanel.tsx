@@ -6,21 +6,21 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { THEME_CLASSES, THEME_TOKENS } from '../styles/tokens';
-import { 
-  Building2, FolderPlus, ToggleLeft, Activity, ShieldCheck, Plus, Trash2, Edit3, 
+import {
+  Building2, FolderPlus, ToggleLeft, Activity, ShieldCheck, Plus, Trash2, Edit3,
   Settings2, AlertTriangle, ShieldAlert, CheckCircle2, Trees, Trash, Check, UserPlus
 } from 'lucide-react';
-import { LocalDatabase } from '../services/database';
+import { ApiClient } from '../services/api';
 import { Cabin, Category, Feature, User } from '../types';
 
 export const AdminPanel: React.FC = () => {
-  const { 
-    user, 
-    setView, 
-    cabins, 
-    categories, 
-    features, 
-    allReservations, 
+  const {
+    user,
+    setView,
+    cabins,
+    categories,
+    features,
+    allReservations,
     reloadDatabase,
     adminSubTab,
     setAdminSubTab
@@ -70,7 +70,7 @@ export const AdminPanel: React.FC = () => {
   const [featDesc, setFeatDesc] = useState('');
 
   // 1. Double Cabin Creation Handler (Historial 3)
-  const handleCreateCabin = (e: React.FormEvent) => {
+  const handleCreateCabin = async (e: React.FormEvent) => {
     e.preventDefault();
     setCabinError(null);
     setCabinSuccess(false);
@@ -92,10 +92,10 @@ export const AdminPanel: React.FC = () => {
     }
 
     try {
-      LocalDatabase.createCabin({
+      await ApiClient.createCabin({
         name,
         description: cabDesc.trim() || "Cabaña en la naturaleza recién enlistada.",
-        categoryId: cabCat || categories[0]?.id || "cat-1",
+        categoryId: cabCat || categories[0]?.id || '',
         city: cabCity,
         state: cabState,
         country: "México",
@@ -140,22 +140,22 @@ export const AdminPanel: React.FC = () => {
   };
 
   // 2. Double Cabin Delete Handler (Historial 11)
-  const handleDeleteCabin = (cabinId: string, cabinName: string) => {
+  const handleDeleteCabin = async (cabinId: string, cabinName: string) => {
     const doubleCheck = window.confirm(`¿Está completamente seguro de que desea eliminar la propiedad "${cabinName}" de la base de datos?\nEsta acción es irreversible.`);
     if (doubleCheck) {
-      LocalDatabase.deleteCabin(cabinId);
-      reloadDatabase();
+      await ApiClient.deleteCabin(cabinId);
+      await reloadDatabase();
       alert("Cabaña eliminada correctamente.");
     }
   };
 
   // 3. Category Create Handler (Historial 21)
-  const handleCreateCategory = (e: React.FormEvent) => {
+  const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     setCatError(null);
     if (!catName.trim() || !catDesc.trim()) return;
 
-    LocalDatabase.createCategory({
+    await ApiClient.createCategory({
       name: catName.trim(),
       description: catDesc.trim(),
       imageUrl: catImg.trim()
@@ -168,7 +168,7 @@ export const AdminPanel: React.FC = () => {
   };
 
   // 4. Category Delete Handler (Historial 29)
-  const handleDeleteCategory = (catId: string, catName: string) => {
+  const handleDeleteCategory = async (catId: string, catName: string) => {
     const list = cabins.filter(c => c.categoryId === catId);
     let warning = `¿Eliminar la categoría "${catName}"?`;
     if (list.length > 0) {
@@ -177,18 +177,18 @@ export const AdminPanel: React.FC = () => {
 
     const confirm = window.confirm(warning);
     if (confirm) {
-      LocalDatabase.deleteCategory(catId);
-      reloadDatabase();
+      await ApiClient.deleteCategory(catId);
+      await reloadDatabase();
       alert("Categoría desinstalada.");
     }
   };
 
   // 5. Feature Create Handler (Historial 17)
-  const handleCreateFeature = (e: React.FormEvent) => {
+  const handleCreateFeature = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!featName.trim()) return;
 
-    LocalDatabase.createFeature({
+    await ApiClient.createFeature({
       name: featName.trim(),
       iconKey: featIcon,
       description: featDesc.trim() || "Servicio rústico"
@@ -201,11 +201,11 @@ export const AdminPanel: React.FC = () => {
   };
 
   // 6. Feature Delete Handler (Historial 17)
-  const handleDeleteFeature = (featId: string) => {
+  const handleDeleteFeature = async (featId: string) => {
     const confirm = window.confirm("¿Seguro que deseas eliminar esta característica? Se desvinculará de las propiedades.");
     if (confirm) {
-      LocalDatabase.deleteFeature(featId);
-      reloadDatabase();
+      await ApiClient.deleteFeature(featId);
+      await reloadDatabase();
     }
   };
 
@@ -217,26 +217,24 @@ export const AdminPanel: React.FC = () => {
     }
     const confirmVal = window.confirm(`¿Desea cambiar la jerarquía y permisos de rol para el usuario "${targetName}"?`);
     if (confirmVal) {
-      LocalDatabase.toggleAdmin(targetUserId);
-      reloadDatabase();
-      alert("Permiso actualizado con éxito.");
+      alert("La gestión de roles se realizará desde el backend cuando esté disponible.");
     }
   };
 
   // 8. Custom override reservation status (Admin override)
-  const handleUpdateResStatus = (resId: string, status: any) => {
-    LocalDatabase.updateReservationStatus(resId, status);
-    reloadDatabase();
+  const handleUpdateResStatus = async (resId: string, status: any) => {
+    await ApiClient.updateReservationStatus(resId, status);
+    await reloadDatabase();
     alert(`Estado de reserva actualizado a "${status}"`);
   };
 
   const registeredUsers = useMemo(() => {
-    return LocalDatabase.getUsers();
-  }, [allReservations]); // trigger refresh easily
+    return [] as User[];
+  }, [allReservations]);
 
   return (
     <div className="min-h-screen bg-white">
-      
+
       {/* ⚠️ HIGH COMPLIANT MOBILE WARNING PANEL OVERLAY (Historial 9) */}
       <div className="block lg:hidden fixed inset-0 z-50 bg-[#1F5937] text-[#F4E9D9] p-8 flex flex-col justify-center items-center text-center space-y-6">
         <AlertTriangle size={64} className="text-[#8DB600] animate-bounce" />
@@ -244,8 +242,8 @@ export const AdminPanel: React.FC = () => {
         <p className="text-xs max-w-sm text-emerald-100 leading-relaxed font-light">
           ⚠️ Estimado administrador, por especificaciones visuales de control (Historial 9: No debe ser responsive), este panel requiere vistas extendidas para albergar los flujos CRUD. Por favor, acceda desde una Laptop, computadora de escritorio o maximice su resolución.
         </p>
-        <button 
-          onClick={() => setView('home')} 
+        <button
+          onClick={() => setView('home')}
           className="bg-[#F4E9D9] text-[#1F5937] px-6 py-2.5 rounded-xl font-bold text-xs"
         >
           Volver a Navegación Pública
@@ -254,7 +252,7 @@ export const AdminPanel: React.FC = () => {
 
       {/* DESKTOP LAYOUT (Widescreen CRM Admin Workspace) */}
       <div className="hidden lg:flex min-h-screen">
-        
+
         {/* Left Sidebar Menu Menu Nav */}
         <div className="w-64 bg-[#1F5937] text-white p-6 space-y-8 shrink-0 flex flex-col justify-between">
           <div className="space-y-6">
@@ -317,7 +315,7 @@ export const AdminPanel: React.FC = () => {
 
         {/* Right workspace view panel */}
         <div className="flex-1 p-10 bg-gray-50 max-h-screen overflow-y-auto">
-          
+
           {/* Top panel admin card */}
           <div className="flex justify-between items-center border-b border-gray-200 pb-5 mb-8">
             <div>
@@ -325,7 +323,7 @@ export const AdminPanel: React.FC = () => {
               <h2 className="font-sans text-2xl font-black text-[#1F2937] tracking-tight mt-1">Estudio del Administrador</h2>
               <p className="text-xs text-gray-500">Sesión activa: <strong className="text-gray-700">{user.name} {user.lastName} ({user.email})</strong></p>
             </div>
-            
+
             {/* Quick quick cabin creator launcher */}
             {adminSubTab === 'properties' && !showCabinForm && (
               <button
@@ -342,14 +340,14 @@ export const AdminPanel: React.FC = () => {
           {/* TAB 1: PROPERTIES (🛖 CABINS CRUD - HISTORIAL 3, 10, 11) */}
           {adminSubTab === 'properties' && (
             <div className="space-y-6 animate-in fade-in duration-200">
-              
+
               {showCabinForm ? (
                 /* CREATE FORM COMPONENT (Historial 3) */
                 <div className="bg-white border rounded-2xl p-6 shadow-sm space-y-6">
                   <div className="flex justify-between items-center border-b pb-3">
                     <h3 className="font-bold text-[#1F2937] text-sm uppercase tracking-wider">Registrar Nuevo Alojamiento (Cabaña)</h3>
-                    <button 
-                      onClick={() => setShowCabinForm(false)} 
+                    <button
+                      onClick={() => setShowCabinForm(false)}
                       className="text-xs text-gray-400 hover:text-gray-600 font-bold"
                     >
                       Cancelar
@@ -371,13 +369,13 @@ export const AdminPanel: React.FC = () => {
                   )}
 
                   <form onSubmit={handleCreateCabin} className="space-y-4">
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       {/* Name with duplication checking */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Nombre del Alojamiento</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={cabName}
                           onChange={(e) => setCabName(e.target.value)}
                           placeholder="Cabaña de la colina"
@@ -389,7 +387,7 @@ export const AdminPanel: React.FC = () => {
                       {/* Category Selector (Historial 12) */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Categoría Asignada</label>
-                        <select 
+                        <select
                           value={cabCat}
                           onChange={(e) => setCabCat(e.target.value)}
                           className="w-full bg-gray-50 border border-gray-200 text-xs px-3.5 py-2.5 rounded-xl cursor-pointer"
@@ -405,7 +403,7 @@ export const AdminPanel: React.FC = () => {
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Descripción detallada</label>
-                      <textarea 
+                      <textarea
                         value={cabDesc}
                         onChange={(e) => setCabDesc(e.target.value)}
                         placeholder="Escribe un párrafo descriptivo sobre la cabaña, ubicación y atractivos..."
@@ -418,20 +416,20 @@ export const AdminPanel: React.FC = () => {
                       {/* Price */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Precio / Noche ($ USD)</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={cabPrice}
                           onChange={(e) => setCabPrice(Number(e.target.value))}
                           className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl"
                           required
                         />
                       </div>
-                      
+
                       {/* Guests */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Huéspedes de Límite</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={cabGuests}
                           onChange={(e) => setCabGuests(Number(e.target.value))}
                           className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl"
@@ -442,8 +440,8 @@ export const AdminPanel: React.FC = () => {
                       {/* Bedrooms */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Dormitorios</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={cabBedrooms}
                           onChange={(e) => setCabBedrooms(Number(e.target.value))}
                           className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl"
@@ -454,8 +452,8 @@ export const AdminPanel: React.FC = () => {
                       {/* Bathrooms */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Baños</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={cabBathrooms}
                           onChange={(e) => setCabBathrooms(Number(e.target.value))}
                           className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl"
@@ -467,8 +465,8 @@ export const AdminPanel: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Municipio / Ciudad</label>
-                        <select 
-                          value={cabCity} 
+                        <select
+                          value={cabCity}
                           onChange={(e) => setCabCity(e.target.value)}
                           className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl cursor-pointer"
                         >
@@ -481,8 +479,8 @@ export const AdminPanel: React.FC = () => {
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-gray-500 uppercase">Estado Federal</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={cabState}
                           onChange={(e) => setCabState(e.target.value)}
                           className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl"
@@ -494,7 +492,7 @@ export const AdminPanel: React.FC = () => {
                     {/* Image uploads keys simulating array inputs (Historial 3) */}
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Direcciones URL de imágenes (Una por renglón)</label>
-                      <textarea 
+                      <textarea
                         value={cabImageUrlsText}
                         onChange={(e) => setCabImageUrlsText(e.target.value)}
                         placeholder="Pega links directos de Unsplash o servidores..."
@@ -512,7 +510,7 @@ export const AdminPanel: React.FC = () => {
                           const checked = cabSelectedFeatures.includes(feat.id);
                           return (
                             <label key={feat.id} className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-150 cursor-pointer text-xs select-none">
-                              <input 
+                              <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={(e) => {
@@ -555,7 +553,7 @@ export const AdminPanel: React.FC = () => {
                     <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500">Listado Maestro de cabañas en Catálogo ({cabins.length})</h3>
                     <p className="text-xs text-[#8DB600] font-bold">Historial 10 Audit Mode</p>
                   </div>
-                  
+
                   <table className="w-full text-left text-xs text-[#1F2937] border-collapse">
                     <thead className="bg-[#F5F5F5] uppercase text-[10px] text-gray-500 font-bold border-b border-gray-150">
                       <tr>
@@ -616,16 +614,16 @@ export const AdminPanel: React.FC = () => {
           {/* TAB 2: CATEGORIES (📁 CATEGORIES LIST + CREATE - HISTORIAL 21, 29) */}
           {adminSubTab === 'categories' && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in duration-200">
-              
+
               {/* Category creation form (Historial 21) */}
               <div className="bg-white border rounded-2xl p-6 shadow-sm space-y-4 h-fit">
                 <h3 className="font-bold text-[#1F2937] text-sm uppercase tracking-wider border-b pb-2">Agregar Categoría</h3>
-                
+
                 <form onSubmit={handleCreateCategory} className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Título de la Categoría</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={catName}
                       onChange={(e) => setCatName(e.target.value)}
                       placeholder="Ej: Con Alberca, Glamping"
@@ -647,8 +645,8 @@ export const AdminPanel: React.FC = () => {
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Banner / Thumbnail Link</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={catImg}
                       onChange={(e) => setCatImg(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl font-mono"
@@ -668,7 +666,7 @@ export const AdminPanel: React.FC = () => {
               {/* Category listing grid table (Historial 29) */}
               <div className="xl:col-span-2 bg-white border rounded-2xl p-6 shadow-sm space-y-4">
                 <h3 className="font-bold text-[#1F2937] text-xs uppercase tracking-wider border-b pb-2">Categorías Activas ({categories.length})</h3>
-                
+
                 <div className="space-y-3">
                   {categories.map((cat) => {
                     const linkedCabinsCount = cabins.filter(c => c.categoryId === cat.id).length;
@@ -702,16 +700,16 @@ export const AdminPanel: React.FC = () => {
           {/* TAB 3: FEATURES (🛠️ SERVICE AMENITIES CRUD - HISTORIAL 17) */}
           {adminSubTab === 'features' && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in duration-200">
-              
+
               {/* Feature Create (Historial 17) */}
               <div className="bg-white border rounded-2xl p-6 shadow-sm space-y-4 h-fit">
                 <h3 className="font-bold text-[#1F2937] text-sm uppercase tracking-wider border-b pb-2">Nueva Característica</h3>
-                
+
                 <form onSubmit={handleCreateFeature} className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Nombre del Servicio (Ej: Calefacción)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={featName}
                       onChange={(e) => setFeatName(e.target.value)}
                       placeholder="Ej: Jacuzzi exterior, Wifi fibra"
@@ -722,8 +720,8 @@ export const AdminPanel: React.FC = () => {
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Ícono Lucide Identificador (Key)</label>
-                    <select 
-                      value={featIcon} 
+                    <select
+                      value={featIcon}
                       onChange={(e) => setFeatIcon(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl cursor-pointer"
                     >
@@ -740,8 +738,8 @@ export const AdminPanel: React.FC = () => {
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Descripción Breve</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={featDesc}
                       onChange={(e) => setFeatDesc(e.target.value)}
                       placeholder="Ej: Smart TV con Netflix incluido"
@@ -761,7 +759,7 @@ export const AdminPanel: React.FC = () => {
               {/* Feature list layout Table */}
               <div className="xl:col-span-2 bg-white border rounded-2xl p-6 shadow-sm space-y-4">
                 <h3 className="font-bold text-[#1F2937] text-xs uppercase tracking-wider border-b pb-2">Características Oficiales Disponibles ({features.length})</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {features.map((feat) => (
                     <div key={feat.id} className="border border-gray-150 p-4 rounded-xl hover:bg-slate-50 transition flex items-center justify-between">

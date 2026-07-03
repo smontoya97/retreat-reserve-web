@@ -9,17 +9,17 @@ import { THEME_CLASSES } from '../styles/tokens';
 import { Search, Calendar, Users, Heart, Star, Compass, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, Trees, Sparkles, MapPin } from 'lucide-react';
 
 export const Home: React.FC = () => {
-  const { 
-    cabins, 
-    categories, 
-    selectedCategoryFilter, 
+  const {
+    cabins,
+    categories,
+    selectedCategoryFilter,
     setCategoryFilter,
-    searchCriteria, 
-    setSearch, 
-    user, 
-    favorites, 
-    toggleFavorite, 
-    setView 
+    searchCriteria,
+    setSearch,
+    user,
+    favorites,
+    toggleFavorite,
+    setView
   } = useApp();
 
   const searchFormRef = useRef<HTMLFormElement>(null);
@@ -102,7 +102,7 @@ export const Home: React.FC = () => {
             const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${dayNum.toString().padStart(2, '0')}`;
             const isCheckInValue = checkIn === dateStr;
             const isCheckOutValue = checkOut === dateStr;
-            
+
             let isInRange = false;
             if (checkIn && checkOut) {
               const checkInTime = new Date(checkIn).getTime();
@@ -160,8 +160,8 @@ export const Home: React.FC = () => {
     }
 
     if (searchCriteria.city) {
-      list = list.filter(c => 
-        c.city.toLowerCase().includes(searchCriteria.city.toLowerCase()) || 
+      list = list.filter(c =>
+        c.city.toLowerCase().includes(searchCriteria.city.toLowerCase()) ||
         c.state.toLowerCase().includes(searchCriteria.city.toLowerCase())
       );
     }
@@ -207,42 +207,27 @@ export const Home: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const calculateAverageRating = (cabinId: string) => {
-    // In our seed database or AppContext
-    const reviews = [
-      { cabinId: 'cab-1', rating: 4.8 },
-      { cabinId: 'cab-2', rating: 4.5 },
-      { cabinId: 'cab-3', rating: 4.9 },
-      { cabinId: 'cab-4', rating: 4.6 },
-      { cabinId: 'cab-5', rating: 4.7 }
-    ];
-    return reviews.find(r => r.cabinId === cabinId)?.rating || 4.5;
+  const calculateAverageRating = (cabin: { averageRating?: number }) => {
+    return cabin.averageRating ?? 0;
   };
 
-  const mockReviewCounts = (cabinId: string) => {
-    const counts: Record<string, number> = {
-      'cab-1': 128,
-      'cab-2': 96,
-      'cab-3': 156,
-      'cab-4': 78,
-      'cab-5': 62
-    };
-    return counts[cabinId] || 15;
+  const getReviewCount = (cabin: { totalReviews?: number }) => {
+    return cabin.totalReviews ?? 0;
   };
 
   return (
     <div className="min-h-screen bg-white pb-16">
-      
+
       {/* 1. HERO & SEARCH BLOCK (Historial 22 - Realizar búsqueda) */}
       <div className="relative w-full py-16 px-4 md:py-24 z-20" id="hero-outer-container">
         {/* Rounded background element with overflow-hidden for the image, while main container allows z-index dropdown overflow */}
-        <div 
-          className="absolute inset-0 bg-slate-900 rounded-t-xl md:rounded-t-[20px] rounded-b-[20px] md:rounded-b-[28px] overflow-hidden shadow-sm pointer-events-none" 
-          style={{ 
-            backgroundImage: 'linear-gradient(rgba(31, 89, 55, 0.4), rgba(15, 23, 42, 0.85)), url("https://images.unsplash.com/photo-1542224566-6e85f2e6772f?auto=format&fit=crop&w=1600&q=80")', 
-            backgroundSize: 'cover', 
-            backgroundPosition: 'center' 
-          }} 
+        <div
+          className="absolute inset-0 bg-slate-900 rounded-t-xl md:rounded-t-[20px] rounded-b-[20px] md:rounded-b-[28px] overflow-hidden shadow-sm pointer-events-none"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(31, 89, 55, 0.4), rgba(15, 23, 42, 0.85)), url("https://images.unsplash.com/photo-1542224566-6e85f2e6772f?auto=format&fit=crop&w=1600&q=80")',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
         />
 
         {/* Content over the background */}
@@ -260,9 +245,9 @@ export const Home: React.FC = () => {
           </p>
 
           {/* Search form box */}
-          <form 
+          <form
             ref={searchFormRef}
-            onSubmit={handleSearchSubmit} 
+            onSubmit={handleSearchSubmit}
             className="bg-white text-gray-800 p-5 md:p-6 lg:p-7 rounded-[26px] shadow-2xl flex flex-col lg:flex-row gap-4 items-stretch lg:items-center border border-gray-100 max-w-5xl mx-auto mt-8 text-left relative z-20"
           >
             {/* Destination Selection */}
@@ -270,8 +255,8 @@ export const Home: React.FC = () => {
               <label className="text-[10px] font-bold uppercase text-[#8DB600] tracking-wider block mb-1">¿A dónde quieres ir?</label>
               <div className="flex items-center border border-[#E5E7EB] hover:border-[#1F5937] rounded-xl px-3.5 py-2.5 bg-gray-50/50 transition">
                 <MapPin className="text-gray-400 mr-2 shrink-0" size={16} />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={cityInput}
                   onChange={(e) => { setCityInput(e.target.value); setShowSuggest(true); }}
                   onFocus={() => { setShowSuggest(true); setShowCalendar(false); }}
@@ -308,7 +293,7 @@ export const Home: React.FC = () => {
             {/* Date Range Selection (Mock double calendar input) */}
             <div className="flex-[1.8] min-w-0 relative">
               <label className="text-[10px] font-bold uppercase text-[#8DB600] tracking-wider block mb-1">Fechas (Rango)</label>
-              <div 
+              <div
                 onClick={() => { setShowCalendar(!showCalendar); setShowSuggest(false); }}
                 className="grid grid-cols-2 gap-2 cursor-pointer"
               >
@@ -334,15 +319,15 @@ export const Home: React.FC = () => {
                     {renderCustomCalendarMonth(2026, 5, "Junio")}
                   </div>
                   <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => { setCheckIn(''); setCheckOut(''); }}
                       className="text-xs text-gray-400 hover:text-red-500 font-bold transition cursor-pointer"
                     >
                       Limpiar fechas
                     </button>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setShowCalendar(false)}
                       className="bg-[#1F5937] hover:bg-[#143B24] text-white px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
                     >
@@ -358,7 +343,7 @@ export const Home: React.FC = () => {
               <label className="text-[10px] font-bold uppercase text-[#8DB600] tracking-wider block mb-1">Huéspedes</label>
               <div className="flex items-center border border-[#E5E7EB] hover:border-[#1F5937] rounded-xl px-3 py-2.5 bg-gray-50/50 transition">
                 <Users className="text-gray-400 mr-2 shrink-0" size={16} />
-                <select 
+                <select
                   value={guestsCount}
                   onChange={(e) => setGuestsCount(Number(e.target.value))}
                   className="w-full text-xs text-slate-800 focus:outline-none bg-transparent cursor-pointer"
@@ -387,7 +372,7 @@ export const Home: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 space-y-12 relative z-10">
-        
+
         {/* 2. CATEGORIES FILTER SHELF (Historial 20 - Crear sección de categorías) */}
         <div className="bg-[#F5F5F5] p-5 rounded-2xl border border-gray-100">
           <div className="flex justify-between items-center mb-4">
@@ -397,9 +382,9 @@ export const Home: React.FC = () => {
               </h3>
               <p className="text-xs text-gray-500">Haz clic en una categoría para filtrar nuestro catálogo en tiempo real</p>
             </div>
-            
+
             {(selectedCategoryFilter || searchCriteria.city) && (
-              <button 
+              <button
                 onClick={handleClearFilters}
                 className="text-xs text-red-600 hover:text-red-800 hover:underline flex items-center gap-1 font-bold cursor-pointer"
               >
@@ -415,7 +400,7 @@ export const Home: React.FC = () => {
             >
               ⭐ Ver Todas
             </button>
-            
+
             {categories.map((cat) => {
               const isSelected = selectedCategoryFilter === cat.id;
               return (
@@ -440,10 +425,10 @@ export const Home: React.FC = () => {
           <div className="flex flex-col sm:row sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-gray-200 pb-4 mb-6">
             <div>
               <h3 className="font-sans text-xl font-bold text-[#1F2937] tracking-tight">
-                {selectedCategoryFilter 
-                  ? `Cabañas en categoría: ${categories.find(c => c.id === selectedCategoryFilter)?.name}` 
-                  : searchCriteria.city 
-                    ? `Resultados para su búsqueda: "${searchCriteria.city}"` 
+                {selectedCategoryFilter
+                  ? `Cabañas en categoría: ${categories.find(c => c.id === selectedCategoryFilter)?.name}`
+                  : searchCriteria.city
+                    ? `Resultados para su búsqueda: "${searchCriteria.city}"`
                     : "Cabañas recomendadas para ti"}
               </h3>
               <p className="text-xs text-gray-500 mt-1">
@@ -472,18 +457,18 @@ export const Home: React.FC = () => {
               {paginatedCabins.map((cabin) => {
                 const isFavorite = favorites.includes(cabin.id);
                 const average = calculateAverageRating(cabin.id);
-                const reviewsCount = mockReviewCounts(cabin.id);
-                
+                const reviewsCount = getReviewCount(cabin);
+
                 return (
-                  <div 
+                  <div
                     key={cabin.id}
                     className="group bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-fit relative cursor-pointer"
                   >
-                    
+
                     {/* Cabin Image slot */}
                     <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
-                      <img 
-                        src={cabin.imageUrls[0]} 
+                      <img
+                        src={cabin.imageUrls[0]}
                         alt={cabin.name}
                         referrerPolicy="no-referrer"
                         onClick={() => setView('detail', cabin.id)}
@@ -504,11 +489,11 @@ export const Home: React.FC = () => {
                         }}
                         className="absolute top-4 right-4 p-2.5 bg-white/95 rounded-full shadow hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all cursor-pointer focus:outline-none"
                       >
-                        <Heart 
-                          size={18} 
+                        <Heart
+                          size={18}
                           className="transition-transform active:scale-125"
-                          fill={isFavorite ? '#EF4444' : 'none'} 
-                          stroke={isFavorite ? '#EF4444' : '#9CA3AF'} 
+                          fill={isFavorite ? '#EF4444' : 'none'}
+                          stroke={isFavorite ? '#EF4444' : '#9CA3AF'}
                         />
                       </button>
 
@@ -522,7 +507,7 @@ export const Home: React.FC = () => {
                     <div className="p-5 flex-1 flex flex-col justify-between">
                       <div className="space-y-2">
                         <div className="flex justify-between items-start">
-                          <h4 
+                          <h4
                             onClick={() => setView('detail', cabin.id)}
                             className="font-sans text-lg font-bold text-[#1F2937] hover:text-[#1F5937] transition-colors leading-snug"
                           >
@@ -593,7 +578,7 @@ export const Home: React.FC = () => {
               >
                 <ChevronsLeft size={16} />
               </button>
-              
+
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => prev - 1)}

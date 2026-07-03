@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Mail, ChevronDown, ChevronUp, Trash2, CheckCircle2, ExternalLink } from 'lucide-react';
-import { LocalDatabase } from '../services/database';
 
 export const EmailLoggerTray: React.FC = () => {
   const { sentEmails, refreshEmails, setView } = useApp();
@@ -14,7 +13,6 @@ export const EmailLoggerTray: React.FC = () => {
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
 
   const handleClear = () => {
-    LocalDatabase.clearEmails();
     refreshEmails();
     setSelectedEmailId(null);
   };
@@ -25,7 +23,7 @@ export const EmailLoggerTray: React.FC = () => {
     if (match) {
       const url = match[0];
       const token = url.split('token=')[1];
-      
+
       // Simulate click
       setExpanded(false);
       setView('login');
@@ -39,9 +37,9 @@ export const EmailLoggerTray: React.FC = () => {
 
   return (
     <div className="fixed bottom-6 left-6 z-40 max-w-sm sm:max-w-md bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700 overflow-hidden font-mono text-xs">
-      
+
       {/* Header bar */}
-      <div 
+      <div
         onClick={() => setExpanded(!expanded)}
         className="bg-slate-800 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-700 transition"
       >
@@ -59,7 +57,7 @@ export const EmailLoggerTray: React.FC = () => {
         <div className="p-4 max-h-96 overflow-y-auto space-y-3 bg-slate-950">
           <div className="flex justify-between items-center text-[10px] text-slate-400 border-b border-slate-800 pb-2">
             <span>Servidor SMTP Integrado (Ficticio)</span>
-            <button 
+            <button
               onClick={handleClear}
               className="hover:text-red-400 flex items-center gap-1 cursor-pointer"
             >
@@ -71,13 +69,13 @@ export const EmailLoggerTray: React.FC = () => {
             {sentEmails.map((email) => {
               const isSelected = selectedEmailId === email.id;
               const hasVerifyLink = email.body.includes('/verify-email');
-              
+
               return (
-                <div 
-                  key={email.id} 
+                <div
+                  key={email.id}
                   className={`border rounded-lg p-2.5 transition duration-200 ${isSelected ? 'border-emerald-500 bg-slate-900' : 'border-slate-800 bg-slate-900/60 hover:bg-slate-900'}`}
                 >
-                  <div 
+                  <div
                     onClick={() => setSelectedEmailId(isSelected ? null : email.id)}
                     className="cursor-pointer space-y-1"
                   >
