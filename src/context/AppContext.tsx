@@ -202,7 +202,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ApiClient.clearToken();
     refreshUser(null);
     setFavorites([]);
-    void reloadDatabase();
     setCurrentViewState('home');
   };
 

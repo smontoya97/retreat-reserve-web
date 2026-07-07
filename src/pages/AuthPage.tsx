@@ -3,41 +3,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { THEME_CLASSES } from '../styles/tokens';
-import { Mail, Lock, User, Key, Sparkles, LogIn, Award, AlertCircle, HelpCircle } from 'lucide-react';
+import { Mail, Lock, User, Key, Sparkles, LogIn, AlertCircle } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
 export const AuthPage: React.FC = () => {
-  const { login, register, adminMessage, setAdminMessage, setView } = useApp();
-  const [isLoginView, setIsLoginView] = useState(true);
+  const { login, register, adminMessage, setAdminMessage, setView, currentView } = useApp();
+  const [isLoginView, setIsLoginView] = useState(currentView === 'login');
+
+  useEffect(() => {
+    setIsLoginView(currentView === 'login');
+  }, [currentView]);
 
   // Login Form States
   const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('password123');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Register Form States
   const [regName, setRegName] = useState('');
   const [regLastName, setRegLastName] = useState('');
   const [regEmail, setRegEmail] = useState('');
+  const [regPhoneNumber, setRegPhoneNumber] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccess, setRegSuccess] = useState(false);
-
-  // Quick Autofill helpers for tests
-  const handleAdminAutofill = () => {
-    setLoginEmail('admin@retreatreserve.com');
-    setLoginError(null);
-    setIsLoginView(true);
-  };
-
-  const handleDemoAutofill = () => {
-    setLoginEmail('maria@ejemplo.com');
-    setLoginError(null);
-    setIsLoginView(true);
-  };
 
   // Submit login checks
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -71,10 +63,11 @@ export const AuthPage: React.FC = () => {
     const trimmedName = regName.trim();
     const trimmedLastName = regLastName.trim();
     const trimmedEmail = regEmail.trim();
+    const trimmedPhoneNumber = regPhoneNumber.trim();
     const password = regPassword;
 
     if (!trimmedName || !trimmedLastName) {
-      setRegError("El nombre y apellido son obligatorios y deben ser válidos.");
+      setRegError("El nombre y apellido son obligatorios.");
       return;
     }
 
@@ -84,13 +77,27 @@ export const AuthPage: React.FC = () => {
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      setRegError("Por favor ingresa tu correo electrónico.");
+      return;
+    }
     if (!emailRegex.test(trimmedEmail)) {
-      setRegError("Por favor, introduce una dirección de correo electrónico válida.");
+      setRegError("El correo electrónico no tiene un formato válido.");
+      return;
+    }
+
+    const phoneRegex = /^\+?[0-9\s\-()]{7,25}$/;
+    if (!trimmedPhoneNumber) {
+      setRegError("El número de teléfono es obligatorio.");
+      return;
+    }
+    if (!phoneRegex.test(trimmedPhoneNumber)) {
+      setRegError("El teléfono debe tener un formato válido, por ejemplo +52 55 1234 5678.");
       return;
     }
 
     if (!password || password.length < 6) {
-      setRegError("La contraseña debe constar de al menos 6 caracteres para fines de seguridad.");
+      setRegError("La contraseña debe tener mínimo 6 caracteres.");
       return;
     }
 
@@ -99,6 +106,7 @@ export const AuthPage: React.FC = () => {
         name: trimmedName,
         lastName: trimmedLastName,
         email: trimmedEmail,
+        phoneNumber: trimmedPhoneNumber,
         role: 'user',
         password: regPassword
       });
@@ -108,11 +116,13 @@ export const AuthPage: React.FC = () => {
       setRegName('');
       setRegLastName('');
       setRegEmail('');
+      setRegPhoneNumber('');
       setRegPassword('');
 
       // Auto toggle view switch
       setTimeout(() => {
         setIsLoginView(true);
+        setView('login');
         setLoginEmail(trimmedEmail);
         setRegSuccess(false);
       }, 4000);
@@ -165,11 +175,14 @@ export const AuthPage: React.FC = () => {
               )}
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase">Correo Electrónico</label>
+                <label htmlFor="loginEmail" className="text-[10px] font-bold text-gray-500 uppercase">Correo Electrónico</label>
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Mail size={16} className="text-gray-400 mr-2.5 shrink-0" />
                   <input
+                    id="loginEmail"
+                    name="loginEmail"
                     type="email"
+                    autoComplete="username"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="maria@ejemplo.com o admin@retreatreserve.com"
@@ -187,7 +200,10 @@ export const AuthPage: React.FC = () => {
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Lock size={16} className="text-gray-400 mr-2.5 shrink-0" />
                   <input
+                    id="loginPassword"
+                    name="loginPassword"
                     type="password"
+                    autoComplete="current-password"
                     placeholder="Contraseña segura"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
@@ -214,8 +230,8 @@ export const AuthPage: React.FC = () => {
 
               {regSuccess && (
                 <div className="bg-emerald-50 text-emerald-800 text-xs p-4 rounded-xl border border-emerald-200 space-y-1.5">
-                  <p className="font-extrabold">¡Registro Creado con Éxito!</p>
-                  <p>Se envió un email de confirmación y enlace de activación e inicio inmediato a tu bandeja. Revisa el simulador abajo.</p>
+                  <p className="font-extrabold">¡Registro creado con éxito!</p>
+                  <p>Tu cuenta quedó lista para iniciar sesión con tus credenciales.</p>
                 </div>
               )}
 
@@ -232,7 +248,10 @@ export const AuthPage: React.FC = () => {
                   <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                     <User size={14} className="text-gray-400 mr-2 shrink-0" />
                     <input
+                      id="regName"
+                      name="regName"
                       type="text"
+                      autoComplete="given-name"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
                       placeholder="María"
@@ -247,7 +266,10 @@ export const AuthPage: React.FC = () => {
                   <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50">
                     <User size={14} className="text-gray-400 mr-2 shrink-0" />
                     <input
+                      id="regLastName"
+                      name="regLastName"
                       type="text"
+                      autoComplete="family-name"
                       value={regLastName}
                       onChange={(e) => setRegLastName(e.target.value)}
                       placeholder="González"
@@ -263,10 +285,31 @@ export const AuthPage: React.FC = () => {
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Mail size={16} className="text-gray-400 mr-2.5 shrink-0" />
                   <input
+                    id="regEmail"
+                    name="regEmail"
                     type="email"
+                    autoComplete="email"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="ejemplo@correo.com"
+                    className="text-xs text-[#1F2937] bg-transparent focus:outline-none w-full"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Teléfono</label>
+                <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
+                  <User size={16} className="text-gray-400 mr-2.5 shrink-0" />
+                  <input
+                    id="regPhoneNumber"
+                    name="regPhoneNumber"
+                    type="tel"
+                    autoComplete="tel"
+                    value={regPhoneNumber}
+                    onChange={(e) => setRegPhoneNumber(e.target.value)}
+                    placeholder="+52 55 1234 5678"
                     className="text-xs text-[#1F2937] bg-transparent focus:outline-none w-full"
                     required
                   />
@@ -278,7 +321,10 @@ export const AuthPage: React.FC = () => {
                 <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50/50">
                   <Key size={16} className="text-gray-400 mr-2.5 shrink-0" />
                   <input
+                    id="regPassword"
+                    name="regPassword"
                     type="password"
+                    autoComplete="new-password"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
@@ -302,7 +348,8 @@ export const AuthPage: React.FC = () => {
           <div className="border-t border-gray-100 pt-5 text-center">
             <button
               onClick={() => {
-                setIsLoginView(!isLoginView);
+                const nextView = isLoginView ? 'register' : 'login';
+                setView(nextView);
                 setLoginError(null);
                 setRegError(null);
               }}
@@ -310,33 +357,6 @@ export const AuthPage: React.FC = () => {
             >
               {isLoginView ? '¿No tienes cuenta? Registrate aquí.' : '¿Ya eres miembro? Inicia sesión aquí.'}
             </button>
-          </div>
-
-          {/* QUICK TESTING LOGIN ACCELERATORS */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-gray-150 space-y-2">
-            <p className="text-[10px] uppercase font-bold text-slate-400 text-center tracking-widest flex items-center justify-center gap-1">
-              <Award size={12} className="text-[#8DB600]" />
-              Aceleradores de prueba
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleAdminAutofill}
-                className="bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold p-2 rounded-lg transition-all cursor-pointer truncate"
-                title="Llenar correo del administrador"
-              >
-                🔑 Admin Autofill
-              </button>
-              <button
-                type="button"
-                onClick={handleDemoAutofill}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-800 text-[10px] font-bold p-2 rounded-lg transition-all cursor-pointer truncate"
-                title="Llenar correo del usuario de demo"
-              >
-                👥 Demo User Autofill
-              </button>
-            </div>
-            <p className="text-[9px] text-center text-gray-400 italic">No requieren contraseña física para la demostración en el iFrame sandbox.</p>
           </div>
 
         </div>

@@ -73,7 +73,8 @@ export class ApiClient {
 
       if (!response.ok) {
         const payload = await this.parseResponse<any>(response);
-        const message = payload?.message || payload?.error || `Server returned code ${response.status}`;
+        const rawMessage = payload?.message || payload?.error || `Server returned code ${response.status}`;
+        const message = this.translateBackendErrorMessage(rawMessage);
         throw new Error(message);
       }
 
@@ -83,7 +84,9 @@ export class ApiClient {
       }
       return payload;
     } catch (error) {
-      console.error(`[API Client] Error contacting backend at ${BASE_API_URL}${endpoint}:`, error);
+      if (import.meta.env.DEV) {
+        console.error(`[API Client] Error contacting backend at ${BASE_API_URL}${endpoint}:`, error);
+      }
       throw error;
     }
   }
@@ -155,6 +158,39 @@ export class ApiClient {
     };
   }
 
+  private static translateBackendErrorMessage(rawMessage: string): string {
+    const normalized = String(rawMessage).toLowerCase();
+
+    if (normalized.includes('invalid email or password') || normalized.includes('incorrect email or password')) {
+      return 'Correo o contraseña incorrectos.';
+    }
+    if (normalized.includes('unauthorized') || normalized.includes('no autorizado') || normalized.includes('forbidden')) {
+      return 'No estás autorizado para realizar esta acción.';
+    }
+    if (normalized.includes('user not found') || normalized.includes('usuario no encontrado')) {
+      return 'No se encontró una cuenta con este correo.';
+    }
+    if (normalized.includes('password too weak') || normalized.includes('contraseña demasiado débil')) {
+      return 'La contraseña no cumple con los requisitos mínimos.';
+    }
+    if (normalized.includes('email already exists') || normalized.includes('email already in use') || normalized.includes('correo ya existe') || normalized.includes('ya existe')) {
+      return 'Ya existe una cuenta con ese correo electrónico.';
+    }
+    if (normalized.includes('validation failed') || normalized.includes('invalid') || normalized.includes('required') || normalized.includes('must')) {
+      return 'Los datos ingresados no son válidos. Revisa los campos e intenta nuevamente.';
+    }
+    if (normalized.includes('not found') || normalized.includes('no encontrado')) {
+      return 'El recurso solicitado no fue encontrado.';
+    }
+    if (normalized.includes('server returned code 500') || normalized.includes('internal server error')) {
+      return 'Ocurrió un error en el servidor. Intenta nuevamente más tarde.';
+    }
+    if (normalized.includes('server returned code 404')) {
+      return 'No se encontró el recurso solicitado.';
+    }
+    return String(rawMessage).trim() || 'Ocurrió un error al comunicarse con el backend.';
+  }
+
   static async login(email: string, password = 'password123'): Promise<{ token: string; user: User }> {
     try {
       const response = await fetch(`${BASE_API_URL}/auth/login`, {
@@ -163,21 +199,62 @@ export class ApiClient {
         body: JSON.stringify({ email, password }),
       });
 
-      if (response.ok) {
-        const data = await this.parseResponse<any>(response);
-        const token = data?.token;
-        if (token) {
-          this.setToken(token);
-          const normalizedUser = this.normalizeUser(data.user || { ...data, id: data.userId, email });
-          localStorage.setItem('rr_logged_in_user', JSON.stringify(normalizedUser));
-          return { token, user: normalizedUser };
-        }
+      if (!response.ok) {
+        const errorPayload = await this.parseResponse<any>(response);
+        const backendMessage = errorPayload?.message || errorPayload?.error;
+        const message = backendMessage
+          ? this.translateBackendErrorMessage(backendMessage)
+          : 'Correo o contraseña incorrectos.';
+        throw new Error(message);
       }
-    } catch (error) {
-      console.error('Backend auth unavailable.', error);
+
+      const data = await this.parseResponse<any>(response);
+      const token = data?.token;
+      if (token) {
+        this.setToken(token);
+
+        let normalizedUser: User;
+        if (data.user) {
+          normalizedUser = this.normalizeUser(data.user);
+        } else if (data.userId) {
+          normalizedUser = {
+            id: data.userId,
+            name: 'Usuario',
+            lastName: '',
+            email,
+            role: 'user',
+            createdAt: new Date().toISOString(),
+          } as User;
+        } else {
+          throw new Error('Respuesta de login incompleta.');
+        }
+
+        if (data.userId) {
+          normalizedUser = await this.getUserById(data.userId);
+        } else {
+          const shouldFetchProfile = !normalizedUser.name || !normalizedUser.lastName || normalizedUser.name === 'Usuario';
+          if (shouldFetchProfile) {
+            normalizedUser = await this.getUserById(normalizedUser.id);
+          }
+        }
+
+        localStorage.setItem('rr_logged_in_user', JSON.stringify(normalizedUser));
+        return { token, user: normalizedUser };
+      }
+    } catch (error: any) {
+      if (import.meta.env.DEV) {
+        console.error('Backend auth unavailable.', error);
+      }
+      const message = error?.message || 'No se pudo autenticar con el backend.';
+      throw new Error(message);
     }
 
     throw new Error('No se pudo autenticar con el backend.');
+  }
+
+  static async getUserById(userId: string): Promise<User> {
+    const payload = await this.request<any>(`/users/${userId}`, { method: 'GET' });
+    return this.normalizeUser(payload);
   }
 
   static async register(user: Omit<User, 'id'> & { password?: string; phoneNumber?: string }): Promise<User> {
@@ -194,15 +271,24 @@ export class ApiClient {
         }),
       });
 
-      if (response.ok) {
-        const payload = await this.parseResponse<any>(response);
-        return this.normalizeUser(payload.user || payload);
+      if (!response.ok) {
+        const errorPayload = await this.parseResponse<any>(response);
+        const backendMessage = errorPayload?.message || errorPayload?.error;
+        const message = backendMessage
+          ? this.translateBackendErrorMessage(backendMessage)
+          : 'No se pudo registrar el usuario con el backend.';
+        throw new Error(message);
       }
-    } catch (error) {
-      console.error('Backend registration error.', error);
-    }
 
-    throw new Error('No se pudo registrar el usuario con el backend.');
+      const payload = await this.parseResponse<any>(response);
+      return this.normalizeUser(payload.user || payload);
+    } catch (error: any) {
+      if (import.meta.env.DEV) {
+        console.error('Backend registration error.', error);
+      }
+      const message = error?.message || 'No se pudo registrar el usuario con el backend.';
+      throw new Error(message);
+    }
   }
 
   static async getCategories(): Promise<Category[]> {
