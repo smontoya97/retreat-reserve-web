@@ -431,12 +431,15 @@ export const CabinDetail: React.FC = () => {
                   <div key={i} className="space-y-3 bg-white p-4 rounded-xl border border-emerald-100 shadow-xs">
                     <h4 className="font-bold text-xs uppercase text-[#8DB600] tracking-wider border-b border-gray-100 pb-1.5">{policy.title}</h4>
                     <ul className="space-y-2">
-                      {policy.items.map((item, idx) => (
-                        <li key={idx} className="text-xs text-[#1F2937] flex items-start gap-1.5 leading-relaxed">
-                          <span className="text-[#1F5937] mt-0.5">•</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
+                      {policy.items.map((item, idx) => {
+                        const description = typeof item === 'string' ? item : item?.description || '';
+                        return (
+                          <li key={idx} className="text-xs text-[#1F2937] flex items-start gap-1.5 leading-relaxed">
+                            <span className="text-[#1F5937] mt-0.5">•</span>
+                            <span>{description}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}

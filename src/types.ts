@@ -28,10 +28,17 @@ export interface Feature {
   description?: string;
 }
 
+export interface PolicySubItem {
+  id?: string;
+  description: string;
+  displayOrder?: number;
+}
+
 export interface PolicyItem {
+  id?: string;
   title: string;
   displayOrder: number;
-  items: string[];
+  items: (string | PolicySubItem)[];
 }
 
 export interface Cabin {
