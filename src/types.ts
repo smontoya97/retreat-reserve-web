@@ -18,13 +18,13 @@ export interface Category {
   id: string;
   name: string;
   description: string;
-  imageUrl: string;
+  imageUrl?: string;
 }
 
 export interface Feature {
   id: string;
   name: string;
-  iconKey: string; // e.g. 'wifi', 'utensils', 'flame', 'car', 'tv', 'compass', 'snowflake', 'pet'
+  iconUrl: string;
   description?: string;
 }
 
@@ -55,6 +55,10 @@ export interface Cabin {
   averageRating?: number;
   totalReviews?: number;
   status?: 'AVAILABLE' | 'UNAVAILABLE' | 'MAINTENANCE';
+}
+
+export interface CreateCabinInput extends Omit<Cabin, 'id' | 'imageUrls'> {
+  imageKeys: string[];
 }
 
 export interface Reservation {

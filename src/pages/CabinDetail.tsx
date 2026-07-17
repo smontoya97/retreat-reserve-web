@@ -6,20 +6,20 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { THEME_CLASSES } from '../styles/tokens';
-import { 
-  ArrowLeft, Star, Heart, Share2, Wifi, Utensils, Flame, Car, Tv, Compass, Snowflake, ShieldCheck, 
+import {
+  ArrowLeft, Star, Heart, Share2, Wifi, Utensils, Flame, Car, Tv, Compass, Snowflake, ShieldCheck,
   Calendar, Users, AlertTriangle, CheckCircle2, X, Send, MapPin, ChevronLeft, ChevronRight, MessageCircle
 } from 'lucide-react';
 import { ApiClient } from '../services/api';
 
 export const CabinDetail: React.FC = () => {
-  const { 
-    selectedCabinId, 
-    setView, 
-    user, 
-    favorites, 
-    toggleFavorite, 
-    categories, 
+  const {
+    selectedCabinId,
+    setView,
+    user,
+    favorites,
+    toggleFavorite,
+    categories,
     features,
     cabins,
     addReservation,
@@ -123,7 +123,7 @@ export const CabinDetail: React.FC = () => {
             const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${dayNum.toString().padStart(2, '0')}`;
             const isCheckInValue = dateIn === dateStr;
             const isCheckOutValue = dateOut === dateStr;
-            
+
             let isInRange = false;
             if (dateIn && dateOut) {
               const checkInTime = new Date(dateIn).getTime();
@@ -207,18 +207,12 @@ export const CabinDetail: React.FC = () => {
   const isFavorite = favorites.includes(cabin.id);
 
   // Feature icon mapping helper
-  const renderFeatureIcon = (key: string) => {
-    const props = { size: 18, className: "text-[#1F5937]" };
-    switch (key) {
-      case 'wifi': return <Wifi {...props} />;
-      case 'utensils': return <Utensils {...props} />;
-      case 'flame': return <Flame {...props} />;
-      case 'car': return <Car {...props} />;
-      case 'tv': return <Tv {...props} />;
-      case 'compass': return <Compass {...props} />;
-      case 'snowflake': return <Snowflake {...props} />;
-      default: return <ShieldCheck {...props} />;
+  const renderFeatureIcon = (iconUrl?: string) => {
+    if (typeof iconUrl === 'string' && iconUrl.trim()) {
+      return <img src={iconUrl} referrerPolicy="no-referrer" alt="Ícono" className="w-5 h-5 rounded object-cover" />;
     }
+    const props = { size: 18, className: "text-[#1F5937]" };
+    return <ShieldCheck {...props} />;
   };
 
   // Execute Booking submit
@@ -246,7 +240,7 @@ export const CabinDetail: React.FC = () => {
       return;
     }
 
-    // Verify availability check (Story 30 override)
+    // Verify availability check
     const available = await ApiClient.checkAvailability(cabin.id, dateIn, dateOut);
     if (!available) {
       setBookingError("⚠️ Las fechas seleccionadas se cruzan con una reserva existente. Por favor consulta el calendario de disponibilidad.");
@@ -295,8 +289,8 @@ export const CabinDetail: React.FC = () => {
 
   return (
     <div className="bg-white min-h-screen pb-20">
-      
-      {/* 1. PUBLIC HEADER COVER (Historial 5: cubriendo 100% de la pantalla) */}
+
+      {/* 1. PUBLIC HEADER COVER */}
       <div className="w-full bg-[#1F5937] text-white py-6 rounded-t-xl md:rounded-t-[20px] rounded-b-[16px] md:rounded-b-[24px] overflow-hidden shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           <div>
@@ -310,10 +304,10 @@ export const CabinDetail: React.FC = () => {
               📍 {cabin.address}, {cabin.city}, {cabin.state}, {cabin.country}
             </p>
           </div>
-          
+
           {/* Back arrow right-aligned */}
-          <button 
-            onClick={() => setView('home')} 
+          <button
+            onClick={() => setView('home')}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-800/80 hover:bg-emerald-700/80 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 border border-emerald-700"
           >
             <ArrowLeft size={14} /> Volver Atrás
@@ -322,15 +316,15 @@ export const CabinDetail: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-12">
-        
+
         {/* 2. IMAGE GALLERY GRID (Historial 6: 2x2 grid en mitad derecha en desktop; mobile stack) */}
         <div>
           <div className="relative rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-2 shadow-md">
-            
+
             {/* Left Big main image (mitad izquierda) */}
             <div className="aspect-[4/3] w-full bg-slate-100 relative group">
-              <img 
-                src={cabin.imageUrls[0]} 
+              <img
+                src={cabin.imageUrls[0]}
                 alt="Main"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover cursor-pointer transition duration-300 group-hover:scale-102"
@@ -342,8 +336,8 @@ export const CabinDetail: React.FC = () => {
             <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-2 aspect-[4/3]">
               {cabin.imageUrls.slice(1, 5).map((url, i) => (
                 <div key={i} className="w-full h-full relative group overflow-hidden bg-slate-100">
-                  <img 
-                    src={url} 
+                  <img
+                    src={url}
                     alt={`Thumb ${i}`}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover cursor-pointer transition duration-300 group-hover:scale-105"
@@ -365,10 +359,10 @@ export const CabinDetail: React.FC = () => {
 
         {/* 3. CO-SECTION SUMMARY META BLOCK */}
         <div className="flex flex-col lg:flex-row gap-8 items-start">
-          
+
           {/* LEFT: Text descriptivo, características y políticas */}
           <div className="flex-1 space-y-8 min-w-0">
-            
+
             {/* Quick meta statistics Bar */}
             <div className="bg-[#F5F5F5] p-5 rounded-2xl flex flex-wrap gap-6 text-xs text-[#1F2937] border border-gray-100 items-center justify-between">
               <div className="flex gap-4">
@@ -405,14 +399,14 @@ export const CabinDetail: React.FC = () => {
               </p>
             </div>
 
-            {/* CHARACTERISTICS FEATURES PANEL (Historial 18: título "Características", íconos y responsivo) */}
+            {/* CHARACTERISTICS FEATURES PANEL */}
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-[#1F2937] border-b border-gray-100 pb-2">Características y Servicios</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {features.filter(f => cabin.featureIds.includes(f.id)).map((feat) => (
                   <div key={feat.id} className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl hover:bg-[#F4E9D9]/35 border border-gray-100 transition-colors">
                     <div className="p-1.5 bg-white rounded-lg shadow-xs border border-gray-150">
-                      {renderFeatureIcon(feat.iconKey)}
+                      {renderFeatureIcon(feat.iconUrl)}
                     </div>
                     <div>
                       <p className="text-xs font-bold text-[#1F2937]">{feat.name}</p>
@@ -453,10 +447,10 @@ export const CabinDetail: React.FC = () => {
 
           {/* RIGHT: Calendar double check availability, price and reservation form (Historial 23 & 30) */}
           <div className="w-full lg:w-96 space-y-6 shrink-0 sticky top-24">
-            
+
             {/* Price tag informational card */}
             <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-md space-y-4">
-              
+
               <div className="flex justify-between items-baseline">
                 <div>
                   <span className="text-2xl font-black text-[#1F2937]">${cabin.pricePerNight}</span>
@@ -478,7 +472,7 @@ export const CabinDetail: React.FC = () => {
                     <h4 className="font-bold text-sm">¡Reserva Realizada con Éxito!</h4>
                   </div>
                   <p className="text-xs">Tu estancia ha sido registrada en el servidor central. Se envió un correo automatizado de seguridad con el recibo en la bandeja simuladora.</p>
-                  
+
                   <div className="bg-white p-3 rounded border border-emerald-100 space-y-1 text-xs">
                     <p className="font-semibold text-[10px] text-gray-400 uppercase tracking-wider">Código de Confirmación</p>
                     <p className="font-mono font-bold text-sm text-[#1F5937]">RR-{createdResId.toUpperCase().split('-')[1]}</p>
@@ -487,13 +481,13 @@ export const CabinDetail: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 pt-2">
-                    <button 
+                    <button
                       onClick={() => setView('reservations')}
                       className="text-center bg-[#1F5937] hover:bg-[#143B24] text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer"
                     >
                       Ir a mi historial
                     </button>
-                    <button 
+                    <button
                       onClick={() => {
                         setBookingSuccess(false);
                         setDateIn('');
@@ -508,7 +502,7 @@ export const CabinDetail: React.FC = () => {
               ) : (
                 <form onSubmit={handleBookingSubmit} className="space-y-3">
                   <h4 className="text-xs font-bold uppercase text-[#8DB600] tracking-wider mb-2">Configure su Estadía</h4>
-                  
+
                   {bookingError && (
                     <div className="bg-red-50 text-red-700 text-xs p-3 rounded-lg flex items-center gap-1.5 border border-red-150">
                       <AlertTriangle size={16} className="shrink-0" />
@@ -519,7 +513,7 @@ export const CabinDetail: React.FC = () => {
                   {/* Input double calendars check-in / check-out */}
                   <div ref={bookingFormRef} className="space-y-1 relative">
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Fechas de Estadía (Rango)</label>
-                    <div 
+                    <div
                       onClick={() => setShowCalendar(!showCalendar)}
                       className="grid grid-cols-2 gap-2 cursor-pointer"
                     >
@@ -545,15 +539,15 @@ export const CabinDetail: React.FC = () => {
                           {renderCustomCalendarMonth(2026, 5, "Junio")}
                         </div>
                         <div className="border-t border-gray-100 pt-2.5 flex justify-between items-center bg-white">
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => { setDateIn(''); setDateOut(''); }}
                             className="text-xs text-gray-400 hover:text-red-500 font-bold transition cursor-pointer"
                           >
                             Limpiar
                           </button>
-                          <button 
-                            type="button" 
+                          <button
+                            type="button"
                             onClick={() => setShowCalendar(false)}
                             className="bg-[#1F5937] hover:bg-[#143B24] text-white px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
                           >
@@ -568,8 +562,8 @@ export const CabinDetail: React.FC = () => {
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Cantidad de Huéspedes</label>
                     <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50">
                       <Users size={14} className="text-gray-400 mr-2" />
-                      <select 
-                        value={guestsCount} 
+                      <select
+                        value={guestsCount}
                         onChange={(e) => setGuestsCount(Number(e.target.value))}
                         className="text-xs text-[#1F2937] bg-transparent focus:outline-none w-full cursor-pointer"
                       >
@@ -654,8 +648,8 @@ export const CabinDetail: React.FC = () => {
                           const dateKey = `2026-05-${dayNum.toString().padStart(2, '0')}`;
                           const isOccupied = occupiedDatesList.includes(dateKey);
                           return (
-                            <span 
-                              key={i} 
+                            <span
+                              key={i}
                               className={`py-1 rounded-sm ${isOccupied ? 'bg-red-500 text-white font-black' : 'bg-gray-100 text-[#1F2937]'}`}
                             >
                               {dayNum}
@@ -679,8 +673,8 @@ export const CabinDetail: React.FC = () => {
                           const dateKey = `2026-06-${dayNum.toString().padStart(2, '0')}`;
                           const isOccupied = occupiedDatesList.includes(dateKey);
                           return (
-                            <span 
-                              key={i} 
+                            <span
+                              key={i}
                               className={`py-1 rounded-sm ${isOccupied ? 'bg-red-500 text-white font-black' : 'bg-gray-100 text-[#1F2937]'}`}
                             >
                               {dayNum}
@@ -700,7 +694,7 @@ export const CabinDetail: React.FC = () => {
 
         {/* 4. REVIEWS SECTION (Historial 28: con estrellas, acumulado dinámico & añadir reseña) */}
         <div className="bg-white border-t border-gray-200 pt-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Left Summary scores */}
           <div className="space-y-4">
             <h3 className="font-sans text-xl font-bold text-[#1F2937] tracking-tight">Opiniones del producto</h3>
@@ -709,11 +703,11 @@ export const CabinDetail: React.FC = () => {
               <div>
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star 
-                      key={i} 
-                      size={16} 
-                      fill={i < Math.round(averageRating) ? '#8DB600' : 'none'} 
-                      stroke={i < Math.round(averageRating) ? '#8DB600' : '#D1D5DB'} 
+                    <Star
+                      key={i}
+                      size={16}
+                      fill={i < Math.round(averageRating) ? '#8DB600' : 'none'}
+                      stroke={i < Math.round(averageRating) ? '#8DB600' : '#D1D5DB'}
                     />
                   ))}
                 </div>
@@ -724,7 +718,7 @@ export const CabinDetail: React.FC = () => {
             {/* Add Review Form if logged in */}
             <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-4">
               <h4 className="font-bold text-xs uppercase text-[#8DB600] tracking-wider">¿Te has alojado aquí? Danos tu opinión</h4>
-              
+
               {user ? (
                 <form onSubmit={handleReviewSubmit} className="space-y-3">
                   <div className="space-y-1">
@@ -739,10 +733,10 @@ export const CabinDetail: React.FC = () => {
                             onClick={() => setNewRating(starNum)}
                             className="p-1 hover:scale-110 transition cursor-pointer"
                           >
-                            <Star 
-                              size={20} 
-                              fill={starNum <= newRating ? '#8DB600' : 'none'} 
-                              stroke={starNum <= newRating ? '#8DB600' : '#9CA3AF'} 
+                            <Star
+                              size={20}
+                              fill={starNum <= newRating ? '#8DB600' : 'none'}
+                              stroke={starNum <= newRating ? '#8DB600' : '#9CA3AF'}
                             />
                           </button>
                         );
@@ -752,7 +746,7 @@ export const CabinDetail: React.FC = () => {
 
                   <div className="space-y-1">
                     <label className="text-[10px] text-gray-400 font-bold uppercase">Escribe tu comentario</label>
-                    <textarea 
+                    <textarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder="Comparte tu experiencia de descanso con otros interesados de la comunidad..."
@@ -794,11 +788,11 @@ export const CabinDetail: React.FC = () => {
 
                   <div className="flex items-center gap-0.5 shrink-0">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <Star 
-                        key={i} 
-                        size={12} 
-                        fill={i < Math.round(rev.rating) ? '#8DB600' : 'none'} 
-                        stroke={i < Math.round(rev.rating) ? '#8DB600' : '#D1D5DB'} 
+                      <Star
+                        key={i}
+                        size={12}
+                        fill={i < Math.round(rev.rating) ? '#8DB600' : 'none'}
+                        stroke={i < Math.round(rev.rating) ? '#8DB600' : '#D1D5DB'}
                       />
                     ))}
                   </div>
@@ -824,7 +818,7 @@ export const CabinDetail: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-[#1F2937]/95 flex flex-col justify-between p-6 animate-in fade-in duration-300">
           <div className="flex justify-between items-center text-white">
             <h4 className="font-bold text-sm">{cabin.name} — Galería de fotos</h4>
-            <button 
+            <button
               onClick={() => setLightboxOpen(false)}
               className="p-2 hover:bg-white/10 rounded-full text-white cursor-pointer"
             >
@@ -834,24 +828,24 @@ export const CabinDetail: React.FC = () => {
 
           <div className="max-w-4xl mx-auto flex items-center gap-4">
             <button
-               onClick={() => setActivePhotoIdx(prev => prev === 0 ? cabin.imageUrls.length - 1 : prev - 1)}
-               className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition cursor-pointer shrink-0"
+              onClick={() => setActivePhotoIdx(prev => prev === 0 ? cabin.imageUrls.length - 1 : prev - 1)}
+              className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition cursor-pointer shrink-0"
             >
               <ChevronLeft size={24} />
             </button>
 
             <div className="aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl bg-black flex items-center justify-center max-h-[60vh]">
-              <img 
-                src={cabin.imageUrls[activePhotoIdx]} 
-                alt="Lightbox View" 
+              <img
+                src={cabin.imageUrls[activePhotoIdx]}
+                alt="Lightbox View"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-contain"
               />
             </div>
 
             <button
-               onClick={() => setActivePhotoIdx(prev => prev === cabin.imageUrls.length - 1 ? 0 : prev + 1)}
-               className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition cursor-pointer shrink-0"
+              onClick={() => setActivePhotoIdx(prev => prev === cabin.imageUrls.length - 1 ? 0 : prev + 1)}
+              className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition cursor-pointer shrink-0"
             >
               <ChevronRight size={24} />
             </button>
@@ -859,8 +853,8 @@ export const CabinDetail: React.FC = () => {
 
           <div className="flex justify-center gap-1.5 overflow-x-auto py-4">
             {cabin.imageUrls.map((url, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className={`w-16 h-12 rounded overflow-hidden cursor-pointer shrink-0 border-2 transition ${activePhotoIdx === i ? 'border-[#8DB600] scale-105' : 'border-transparent opacity-60'}`}
                 onClick={() => setActivePhotoIdx(i)}
               >
@@ -888,7 +882,7 @@ export const CabinDetail: React.FC = () => {
               <div className="aspect-[16/9] w-full rounded-xl overflow-hidden bg-gray-100">
                 <img src={cabin.imageUrls[0]} alt="preview" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
               </div>
-              
+
               <div>
                 <h5 className="font-bold text-sm text-[#1F2937]">{cabin.name}</h5>
                 <p className="text-xs text-gray-500 truncate">📍 Las mejores vistas en {cabin.city}, {cabin.state}</p>

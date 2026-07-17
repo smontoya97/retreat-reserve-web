@@ -5,13 +5,13 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { THEME_CLASSES, THEME_TOKENS } from '../styles/tokens';
+import { THEME_CLASSES } from '../styles/tokens';
 import {
   Building2, FolderPlus, ToggleLeft, Activity, ShieldCheck, Plus, Trash2, Edit3,
-  Settings2, AlertTriangle, ShieldAlert, CheckCircle2, Trees, Trash, Check, UserPlus
+  Settings2, AlertTriangle, ShieldAlert, CheckCircle2, Trash
 } from 'lucide-react';
 import { ApiClient } from '../services/api';
-import { Cabin, Category, Feature, User } from '../types';
+import { User } from '../types';
 
 export const AdminPanel: React.FC = () => {
   const {
@@ -53,20 +53,74 @@ export const AdminPanel: React.FC = () => {
   const [cabGuests, setCabGuests] = useState(4);
   const [cabBedrooms, setCabBedrooms] = useState(2);
   const [cabBathrooms, setCabBathrooms] = useState(2);
-  const [cabImageUrlsText, setCabImageUrlsText] = useState(
-    "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=800&q=80\nhttps://images.unsplash.com/photo-1449034446853-66c86144b0ad?auto=format&fit=crop&w=800&q=80"
-  );
+  const [cabImageFiles, setCabImageFiles] = useState<File[]>([]);
+  const [cabImagePreviews, setCabImagePreviews] = useState<string[]>([]);
+  const [cabUploading, setCabUploading] = useState(false);
   const [cabSelectedFeatures, setCabSelectedFeatures] = useState<string[]>([]);
 
-  // Category Form Fields (Historial 21)
+  // Policies Form Fields (Dynamic builder)
+  const [cabPolicies, setCabPolicies] = useState<{ title: string; displayOrder: number; items: string[] }[]>([
+    {
+      title: "Reglas Generales",
+      displayOrder: 1,
+      items: ["Check-in: 15:00", "Check-out: 11:00", "Prohibidas fiestas ruidosas"]
+    },
+    {
+      title: "Cancelaciones",
+      displayOrder: 2,
+      items: ["Cancelación gratuita hasta 7 días antes de la llegada"]
+    }
+  ]);
+
+  const handleAddPolicy = () => {
+    setCabPolicies([
+      ...cabPolicies,
+      {
+        title: '',
+        displayOrder: cabPolicies.length + 1,
+        items: []
+      }
+    ]);
+  };
+
+  const handleRemovePolicy = (index: number) => {
+    const next = cabPolicies.filter((_, i) => i !== index)
+      .map((policy, idx) => ({ ...policy, displayOrder: idx + 1 }));
+    setCabPolicies(next);
+  };
+
+  const handleUpdatePolicyTitle = (index: number, title: string) => {
+    const next = [...cabPolicies];
+    next[index].title = title;
+    setCabPolicies(next);
+  };
+
+  const handleAddPolicyItem = (policyIndex: number, itemText: string) => {
+    if (!itemText.trim()) return;
+    const next = [...cabPolicies];
+    next[policyIndex].items.push(itemText.trim());
+    setCabPolicies(next);
+  };
+
+  const handleRemovePolicyItem = (policyIndex: number, itemIndex: number) => {
+    const next = [...cabPolicies];
+    next[policyIndex].items = next[policyIndex].items.filter((_, idx) => idx !== itemIndex);
+    setCabPolicies(next);
+  };
+
+  // Category Form Fields
   const [catName, setCatName] = useState('');
   const [catDesc, setCatDesc] = useState('');
-  const [catImg, setCatImg] = useState('https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=400&q=80');
+  const [catImageFile, setCatImageFile] = useState<File | null>(null);
+  const [catImagePreview, setCatImagePreview] = useState<string | null>(null);
+  const [catUploading, setCatUploading] = useState(false);
   const [catError, setCatError] = useState<string | null>(null);
 
-  // Feature Form Fields (Historial 17)
+  // Feature Form Fields
   const [featName, setFeatName] = useState('');
-  const [featIcon, setFeatIcon] = useState('wifi');
+  const [featIconFile, setFeatIconFile] = useState<File | null>(null);
+  const [featIconPreview, setFeatIconPreview] = useState<string | null>(null);
+  const [featUploading, setFeatUploading] = useState(false);
   const [featDesc, setFeatDesc] = useState('');
 
   // 1. Double Cabin Creation Handler (Historial 3)
@@ -78,20 +132,26 @@ export const AdminPanel: React.FC = () => {
     const name = cabName.trim();
     if (!name) return;
 
-    // Uniqueness validation (Historial 3 Acceptance Criterium)
     const existing = cabins.some(c => c.name.toLowerCase() === name.toLowerCase());
     if (existing) {
       setCabinError(`⚠️ El nombre de la cabaña "${name}" ya está en uso. Por favor, asigne otro nombre único para el catálogo.`);
       return;
     }
 
-    // Process image urls
-    const imgList = cabImageUrlsText.split('\n').map(s => s.trim()).filter(Boolean);
-    if (imgList.length === 0) {
-      imgList.push("https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=800&q=80");
+    if (cabImageFiles.length === 0) {
+      setCabinError('Selecciona al menos una imagen para la cabaña.');
+      return;
     }
 
     try {
+      setCabUploading(true);
+      const uploadedImages = await ApiClient.uploadMultipleImages(cabImageFiles);
+      const imageKeys = uploadedImages.map(item => item.imageKey || item.key || '').filter(Boolean);
+
+      if (imageKeys.length === 0) {
+        throw new Error('No se pudieron obtener las referencias de las imágenes subidas.');
+      }
+
       await ApiClient.createCabin({
         name,
         description: cabDesc.trim() || "Cabaña en la naturaleza recién enlistada.",
@@ -106,29 +166,31 @@ export const AdminPanel: React.FC = () => {
         numberOfBedrooms: cabBedrooms,
         numberOfBathrooms: cabBathrooms,
         pricePerNight: Number(cabPrice),
-        imageUrls: imgList,
+        imageKeys,
         featureIds: cabSelectedFeatures,
-        policies: [
-          {
-            title: "Reglas Generales",
-            displayOrder: 1,
-            items: ["Check-in: 15:00", "Check-out: 11:00", "Prohibidas fiestas ruidosas"]
-          },
-          {
-            title: "Cancelaciones",
-            displayOrder: 2,
-            items: ["Cancelación gratuita hasta 7 días antes de la llegada"]
-          }
-        ]
+        policies: cabPolicies
       });
 
       setCabinSuccess(true);
       reloadDatabase();
 
-      // Reset fields
       setCabName('');
       setCabDesc('');
       setCabSelectedFeatures([]);
+      setCabImageFiles([]);
+      setCabImagePreviews([]);
+      setCabPolicies([
+        {
+          title: "Reglas Generales",
+          displayOrder: 1,
+          items: ["Check-in: 15:00", "Check-out: 11:00", "Prohibidas fiestas ruidosas"]
+        },
+        {
+          title: "Cancelaciones",
+          displayOrder: 2,
+          items: ["Cancelación gratuita hasta 7 días antes de la llegada"]
+        }
+      ]);
       setTimeout(() => {
         setCabinSuccess(false);
         setShowCabinForm(false);
@@ -136,10 +198,12 @@ export const AdminPanel: React.FC = () => {
 
     } catch (err: any) {
       setCabinError(err.message || "Error al encriptar o guardar el producto.");
+    } finally {
+      setCabUploading(false);
     }
   };
 
-  // 2. Double Cabin Delete Handler (Historial 11)
+  // 2. Double Cabin Delete Handler
   const handleDeleteCabin = async (cabinId: string, cabinName: string) => {
     const doubleCheck = window.confirm(`¿Está completamente seguro de que desea eliminar la propiedad "${cabinName}" de la base de datos?\nEsta acción es irreversible.`);
     if (doubleCheck) {
@@ -149,22 +213,48 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  // 3. Category Create Handler (Historial 21)
-  const handleCreateCategory = async (e: React.FormEvent) => {
+  // 3. Category Create Handler
+  const handleCreateCategory = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setCatError(null);
-    if (!catName.trim() || !catDesc.trim()) return;
 
-    await ApiClient.createCategory({
-      name: catName.trim(),
-      description: catDesc.trim(),
-      imageUrl: catImg.trim()
-    });
+    if (!catName.trim() || !catDesc.trim()) {
+      setCatError('Completa el nombre y la descripción de la categoría.');
+      return;
+    }
 
-    setCatName('');
-    setCatDesc('');
-    reloadDatabase();
-    alert("Categoría creada con éxito.");
+    if (!catImageFile) {
+      setCatError('Selecciona una imagen para la categoría.');
+      return;
+    }
+
+    try {
+      setCatUploading(true);
+      const uploadResult = await ApiClient.uploadImage(catImageFile);
+      const imageKey = uploadResult?.imageKey;
+
+      if (!imageKey) {
+        throw new Error('El backend no devolvió una referencia válida para la imagen.');
+      }
+
+      await ApiClient.createCategory({
+        name: catName.trim(),
+        description: catDesc.trim(),
+        imageKey,
+        imageUrl: uploadResult?.imageUrl
+      });
+
+      setCatName('');
+      setCatDesc('');
+      setCatImageFile(null);
+      setCatImagePreview(null);
+      reloadDatabase();
+      alert('Categoría creada con éxito.');
+    } catch (err: any) {
+      setCatError(err.message || 'No se pudo crear la categoría.');
+    } finally {
+      setCatUploading(false);
+    }
   };
 
   // 4. Category Delete Handler (Historial 29)
@@ -188,19 +278,40 @@ export const AdminPanel: React.FC = () => {
     e.preventDefault();
     if (!featName.trim()) return;
 
-    await ApiClient.createFeature({
-      name: featName.trim(),
-      iconKey: featIcon,
-      description: featDesc.trim() || "Servicio rústico"
-    });
+    if (!featIconFile) {
+      alert('Selecciona un icono para la característica.');
+      return;
+    }
 
-    setFeatName('');
-    setFeatDesc('');
-    reloadDatabase();
-    alert("Nueva característica indexada correctamente.");
+    try {
+      setFeatUploading(true);
+      const uploadResult = await ApiClient.uploadImage(featIconFile);
+      const iconUrl = uploadResult?.imageUrl || uploadResult?.url || '';
+
+      if (!iconUrl) {
+        throw new Error('No se pudo obtener la URL del ícono subido.');
+      }
+
+      await ApiClient.createFeature({
+        name: featName.trim(),
+        iconUrl,
+        description: featDesc.trim() || ''
+      });
+
+      setFeatName('');
+      setFeatDesc('');
+      setFeatIconFile(null);
+      setFeatIconPreview(null);
+      reloadDatabase();
+      alert("Nueva característica indexada correctamente.");
+    } catch (err: any) {
+      alert(err.message || 'No se pudo crear la característica.');
+    } finally {
+      setFeatUploading(false);
+    }
   };
 
-  // 6. Feature Delete Handler (Historial 17)
+  // 6. Feature Delete Handler
   const handleDeleteFeature = async (featId: string) => {
     const confirm = window.confirm("¿Seguro que deseas eliminar esta característica? Se desvinculará de las propiedades.");
     if (confirm) {
@@ -209,7 +320,7 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  // 7. Toggle Users Privileges (Historial 16)
+  // 7. Toggle Users Privileges
   const handleToggleAdminUser = (targetUserId: string, targetName: string) => {
     if (targetUserId === user.id) {
       alert("No puedes revocar tus propios derechos directos de administrador mientras estás en sesión.");
@@ -240,7 +351,7 @@ export const AdminPanel: React.FC = () => {
         <AlertTriangle size={64} className="text-[#8DB600] animate-bounce" />
         <h3 className="font-sans text-2xl font-black uppercase tracking-tight">Panel Administrativo Exclusivo</h3>
         <p className="text-xs max-w-sm text-emerald-100 leading-relaxed font-light">
-          ⚠️ Estimado administrador, por especificaciones visuales de control (Historial 9: No debe ser responsive), este panel requiere vistas extendidas para albergar los flujos CRUD. Por favor, acceda desde una Laptop, computadora de escritorio o maximice su resolución.
+          ⚠️ Estimado administrador, por especificaciones visuales de control (No debe ser responsive), este panel requiere vistas extendidas para albergar los flujos CRUD. Por favor, acceda desde una Laptop, computadora de escritorio o maximice su resolución.
         </p>
         <button
           onClick={() => setView('home')}
@@ -489,20 +600,40 @@ export const AdminPanel: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Image uploads keys simulating array inputs (Historial 3) */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Direcciones URL de imágenes (Una por renglón)</label>
-                      <textarea
-                        value={cabImageUrlsText}
-                        onChange={(e) => setCabImageUrlsText(e.target.value)}
-                        placeholder="Pega links directos de Unsplash o servidores..."
-                        className="w-full bg-gray-50 border border-gray-200 text-xs p-3 rounded-xl h-20 font-mono"
-                        required
-                      ></textarea>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Imágenes de la cabaña</label>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 hover:bg-gray-100">
+                          <span className="font-semibold text-[#1F5937]">Seleccionar varias imágenes</span>
+                          <span className="rounded-lg bg-[#1F5937] px-3 py-1.5 text-[11px] font-bold text-white">Elegir archivos</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              setCabImageFiles(files);
+                              setCabImagePreviews(files.map(file => URL.createObjectURL(file)));
+                            }}
+                            required
+                          />
+                        </label>
+                        <div className="min-h-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-[11px] text-gray-500">
+                          {cabImageFiles.length > 0 ? `${cabImageFiles.length} archivo(s) seleccionado(s)` : 'Aún no has elegido imágenes'}
+                        </div>
+                      </div>
+                      {cabImagePreviews.length > 0 && (
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          {cabImagePreviews.map((preview, index) => (
+                            <img key={`${preview}-${index}`} src={preview} alt={`Vista previa ${index + 1}`} className="h-20 w-full rounded-lg object-cover" />
+                          ))}
+                        </div>
+                      )}
                       <p className="text-[9px] text-gray-400">Se requiere al menos una imagen principal para el home.</p>
                     </div>
 
-                    {/* SELECT AND DEFINE FEATURES CHECKBOXES (Historial 17) */}
+                    {/* SELECT AND DEFINE FEATURES CHECKBOXES */}
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-gray-500 uppercase block">Asociar Características / Comodidades:</label>
                       <div className="grid grid-cols-3 gap-3">
@@ -528,6 +659,101 @@ export const AdminPanel: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* POLICIES DYNAMIC BUILDER (layout & spacing compliant) */}
+                    <div className="space-y-4 border-t pt-5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase block tracking-wider">Políticas y Reglas del Alojamiento:</label>
+                        <button
+                          type="button"
+                          onClick={handleAddPolicy}
+                          className="text-[11px] bg-[#8DB600] hover:bg-[#739600] text-white px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <Plus size={14} /> Agregar Política
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {cabPolicies.map((policy, pIdx) => (
+                          <div key={pIdx} className="bg-gray-50/50 border border-gray-200/80 p-4.5 rounded-2xl relative space-y-4 shadow-2xs hover:shadow-xs transition duration-200">
+                            <div className="flex gap-4 items-end justify-between">
+                              <div className="flex-1 space-y-1.5">
+                                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Título de la Política</label>
+                                <input
+                                  type="text"
+                                  value={policy.title}
+                                  onChange={(e) => handleUpdatePolicyTitle(pIdx, e.target.value)}
+                                  placeholder="Ej: Reglas de convivencia, Mascotas, Cancelación..."
+                                  className="w-full bg-white border border-gray-200 text-xs px-3.5 py-2.5 rounded-xl focus:ring-1 focus:ring-[#1F5937]"
+                                  required
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePolicy(pIdx)}
+                                className="p-2.5 bg-red-50 hover:bg-red-150 text-red-600 rounded-xl transition cursor-pointer active:scale-95 shrink-0"
+                                title="Eliminar política completa"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+
+                            <div className="space-y-2.5">
+                              <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Reglas / Restricciones de esta Política:</label>
+
+                              {policy.items.length > 0 ? (
+                                <ul className="space-y-2">
+                                  {policy.items.map((item, iIdx) => (
+                                    <li key={iIdx} className="flex justify-between items-center text-xs text-gray-700 bg-white border border-gray-150 px-3.5 py-2 rounded-xl shadow-3xs">
+                                      <span className="font-light">• {item}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemovePolicyItem(pIdx, iIdx)}
+                                        className="text-red-500 hover:text-red-750 p-1 font-bold text-[10px]"
+                                      >
+                                        ✕
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-[10px] text-gray-400 italic pl-1.5 font-light">Aún no hay reglas agregadas a esta política.</p>
+                              )}
+
+                              <div className="flex gap-2.5 mt-2">
+                                <input
+                                  type="text"
+                                  id={`new-item-input-${pIdx}`}
+                                  placeholder="Agregar una nueva regla o restricción..."
+                                  className="flex-1 bg-white border border-gray-200 text-xs px-3.5 py-2.5 rounded-xl focus:ring-1 focus:ring-[#1F5937]"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      const target = e.currentTarget;
+                                      handleAddPolicyItem(pIdx, target.value);
+                                      target.value = '';
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const inputEl = document.getElementById(`new-item-input-${pIdx}`) as HTMLInputElement;
+                                    if (inputEl) {
+                                      handleAddPolicyItem(pIdx, inputEl.value);
+                                      inputEl.value = '';
+                                    }
+                                  }}
+                                  className="bg-[#1F5937] hover:bg-[#143B24] text-white px-4 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition cursor-pointer active:scale-95"
+                                >
+                                  Añadir
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="pt-4 flex gap-2 border-t mt-4">
                       <button
                         type="submit"
@@ -547,11 +773,11 @@ export const AdminPanel: React.FC = () => {
                   </form>
                 </div>
               ) : (
-                /* CABIN PRODUCTS TABLE LIST (Historial 10 Columnas: Id, Nombre, Acciones) */
+                /* CABIN PRODUCTS TABLE LIST (Columnas: Id, Nombre, Acciones) */
                 <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
                   <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
                     <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500">Listado Maestro de cabañas en Catálogo ({cabins.length})</h3>
-                    <p className="text-xs text-[#8DB600] font-bold">Historial 10 Audit Mode</p>
+                    <p className="text-xs text-[#8DB600] font-bold">Audit Mode</p>
                   </div>
 
                   <table className="w-full text-left text-xs text-[#1F2937] border-collapse">
@@ -611,11 +837,11 @@ export const AdminPanel: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: CATEGORIES (📁 CATEGORIES LIST + CREATE - HISTORIAL 21, 29) */}
+          {/* TAB 2: CATEGORIES (📁 CATEGORIES LIST + CREATE) */}
           {adminSubTab === 'categories' && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in duration-200">
 
-              {/* Category creation form (Historial 21) */}
+              {/* Category creation form */}
               <div className="bg-white border rounded-2xl p-6 shadow-sm space-y-4 h-fit">
                 <h3 className="font-bold text-[#1F2937] text-sm uppercase tracking-wider border-b pb-2">Agregar Categoría</h3>
 
@@ -644,26 +870,56 @@ export const AdminPanel: React.FC = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Banner / Thumbnail Link</label>
-                    <input
-                      type="text"
-                      value={catImg}
-                      onChange={(e) => setCatImg(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl font-mono"
-                      required
-                    />
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Imagen de la categoría</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 hover:bg-gray-100">
+                        <span className="font-semibold text-[#1F5937]">Seleccionar archivo</span>
+                        <span className="rounded-lg bg-[#1F5937] px-3 py-1.5 text-[11px] font-bold text-white">Elegir imagen</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setCatImageFile(file);
+                            if (file) {
+                              const previewUrl = URL.createObjectURL(file);
+                              setCatImagePreview(previewUrl);
+                            } else {
+                              setCatImagePreview(null);
+                            }
+                          }}
+                          required
+                        />
+                      </label>
+                      <div className="min-h-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-[11px] text-gray-500">
+                        {catImageFile ? `Archivo seleccionado: ${catImageFile.name}` : 'Aún no has elegido una imagen'}
+                      </div>
+                    </div>
+                    {catImagePreview && (
+                      <div className="mt-2 rounded-xl border border-gray-200 p-2 bg-gray-50">
+                        <img src={catImagePreview} alt="Vista previa de categoría" className="h-24 w-full rounded-lg object-cover" />
+                      </div>
+                    )}
                   </div>
+
+                  {catError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                      {catError}
+                    </div>
+                  )}
 
                   <button
                     type="submit"
-                    className={`${THEME_CLASSES.btnSecondary} w-full py-2.5 text-xs font-bold uppercase`}
+                    disabled={catUploading}
+                    className={`${THEME_CLASSES.btnSecondary} w-full py-2.5 text-xs font-bold uppercase disabled:opacity-60`}
                   >
-                    Agregar Categoría
+                    {catUploading ? 'Subiendo imagen...' : 'Agregar Categoría'}
                   </button>
                 </form>
               </div>
 
-              {/* Category listing grid table (Historial 29) */}
+              {/* Category listing grid table */}
               <div className="xl:col-span-2 bg-white border rounded-2xl p-6 shadow-sm space-y-4">
                 <h3 className="font-bold text-[#1F2937] text-xs uppercase tracking-wider border-b pb-2">Categorías Activas ({categories.length})</h3>
 
@@ -697,7 +953,7 @@ export const AdminPanel: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 3: FEATURES (🛠️ SERVICE AMENITIES CRUD - HISTORIAL 17) */}
+          {/* TAB 3: FEATURES (🛠️ SERVICE AMENITIES CRUD) */}
           {adminSubTab === 'features' && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in duration-200">
 
@@ -719,21 +975,36 @@ export const AdminPanel: React.FC = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Ícono Lucide Identificador (Key)</label>
-                    <select
-                      value={featIcon}
-                      onChange={(e) => setFeatIcon(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-xs p-2.5 rounded-xl cursor-pointer"
-                    >
-                      <option value="wifi">wifi (Wifi conex.)</option>
-                      <option value="utensils">utensils (Cocina equipada)</option>
-                      <option value="flame">flame (Chimeneas o estufas)</option>
-                      <option value="car">car (Estacionamiento)</option>
-                      <option value="tv">tv (Pantalla plana)</option>
-                      <option value="compass">compass (Aventuras de cerro)</option>
-                      <option value="snowflake">snowflake (Climatización)</option>
-                      <option value="pet">shield-check (Mascota permitida / seguridad)</option>
-                    </select>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase">Ícono de la característica</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 hover:bg-gray-100">
+                        <span className="font-semibold text-[#1F5937]">Subir icono</span>
+                        <span className="rounded-lg bg-[#1F5937] px-3 py-1.5 text-[11px] font-bold text-white">Elegir archivo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            setFeatIconFile(file);
+                            if (file) {
+                              setFeatIconPreview(URL.createObjectURL(file));
+                            } else {
+                              setFeatIconPreview(null);
+                            }
+                          }}
+                          required
+                        />
+                      </label>
+                      <div className="min-h-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-[11px] text-gray-500">
+                        {featIconFile ? `Archivo seleccionado: ${featIconFile.name}` : 'Requerido: selecciona un icono para la característica'}
+                      </div>
+                    </div>
+                    {featIconPreview && (
+                      <div className="mt-2 rounded-xl border border-gray-200 p-2 bg-gray-50">
+                        <img src={featIconPreview} alt="Vista previa del icono" className="h-16 w-16 rounded-lg object-cover" />
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -749,9 +1020,10 @@ export const AdminPanel: React.FC = () => {
 
                   <button
                     type="submit"
-                    className={`${THEME_CLASSES.btnPrimary} w-full py-2.5 text-xs font-bold uppercase`}
+                    disabled={featUploading}
+                    className={`${THEME_CLASSES.btnPrimary} w-full py-2.5 text-xs font-bold uppercase disabled:opacity-60`}
                   >
-                    Añadir Nueva Característica
+                    {featUploading ? 'Subiendo icono...' : 'Añadir Nueva Característica'}
                   </button>
                 </form>
               </div>
@@ -764,9 +1036,11 @@ export const AdminPanel: React.FC = () => {
                   {features.map((feat) => (
                     <div key={feat.id} className="border border-gray-150 p-4 rounded-xl hover:bg-slate-50 transition flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="p-2 bg-emerald-50 rounded bg-[#F4E9D9]/30 text-[#1F5937] font-bold font-mono">
-                          {feat.iconKey.slice(0, 3).toUpperCase()}
-                        </span>
+                        {feat.iconUrl ? (
+                          <img src={feat.iconUrl} referrerPolicy="no-referrer" alt={feat.name} className="w-8 h-8 rounded-lg object-cover" />
+                        ) : (
+                          <span className="p-2 bg-emerald-50 rounded bg-[#F4E9D9]/30 text-[#1F5937] font-bold font-mono text-xs">•••</span>
+                        )}
                         <div>
                           <h4 className="font-bold text-xs text-[#1F2937]">{feat.name}</h4>
                           <span className="text-[9px] text-gray-400 italic block">{feat.description}</span>
@@ -855,7 +1129,7 @@ export const AdminPanel: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 5: USERS ROLES MANAGEMENT SYSTEM (👥 - HISTORIAL 16) */}
+          {/* TAB 5: USERS ROLES MANAGEMENT SYSTEM (👥) */}
           {adminSubTab === 'users' && (
             <div className="bg-white border rounded-2xl overflow-hidden shadow-sm animate-in fade-in duration-200">
               <div className="p-5 border-b bg-gray-50/50 flex justify-between items-center">

@@ -451,12 +451,11 @@ export const Home: React.FC = () => {
             </div>
           </div>
 
-          {/* Grilla de productos - 2 columnas y 5 filas como máximo (Historial 4 Criterio) */}
           {paginatedCabins.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[1600px] overflow-hidden">
               {paginatedCabins.map((cabin) => {
                 const isFavorite = favorites.includes(cabin.id);
-                const average = calculateAverageRating(cabin.id);
+                const average = calculateAverageRating(cabin);
                 const reviewsCount = getReviewCount(cabin);
 
                 return (

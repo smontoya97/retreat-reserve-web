@@ -101,6 +101,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('online');
   const [backendMessage, setBackendMessage] = useState<string | null>(null);
 
+  const normalizeFeature = (feature: Partial<Feature>): Feature => ({
+    id: feature.id || '',
+    name: feature.name || 'Característica',
+    iconUrl: typeof feature.iconUrl === 'string' && feature.iconUrl.trim() ? feature.iconUrl : '',
+    description: feature.description || '',
+  });
+
   const reloadDatabase = async () => {
     try {
       const userId = user?.id;
@@ -117,7 +124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setBackendMessage(null);
       setCabins(fetchedCabins);
       setCategories(fetchedCategories);
-      setFeatures(fetchedFeatures);
+      setFeatures(fetchedFeatures.map(normalizeFeature));
       setAllReservations(fetchedReservations);
       setAllReviews(fetchedReviews);
       setSentEmails([]);

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Category, Feature, Cabin, Reservation, Review, User } from '../types';
+import { Category, Feature, Cabin, Reservation, Review, User, CreateCabinInput } from '../types';
 
 const BASE_API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8080/api/v1';
 const TOKEN_KEY = 'rr_auth_token';
@@ -295,12 +295,58 @@ export class ApiClient {
     return this.request<Category[]>('/categories', { method: 'GET' });
   }
 
-  static async createCategory(category: Omit<Category, 'id'>): Promise<Category> {
+  static async createCategory(category: Omit<Category, 'id'> & { imageKey?: string; imageUrl?: string }): Promise<Category> {
     return this.request<Category>('/categories', {
       method: 'POST',
-      headers: this.getHeaders(),
+      headers: this.getHeaders('application/json'),
       body: JSON.stringify(category),
     });
+  }
+
+  static async uploadImage(file: File): Promise<{ imageKey?: string; key?: string; imageUrl?: string; url?: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${BASE_API_URL}/images/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: this.getToken() ? `Bearer ${this.getToken()}` : '',
+        'X-User-Id': localStorage.getItem('rr_logged_in_user') ? JSON.parse(localStorage.getItem('rr_logged_in_user') || '{}').id || '' : '',
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const payload = await this.parseResponse<any>(response);
+      const rawMessage = payload?.message || payload?.error || 'No se pudo subir la imagen.';
+      throw new Error(this.translateBackendErrorMessage(rawMessage));
+    }
+
+    const payload = await this.parseResponse<any>(response);
+    return payload || {};
+  }
+
+  static async uploadMultipleImages(files: File[]): Promise<Array<{ imageKey?: string; key?: string; imageUrl?: string; url?: string }>> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+
+    const response = await fetch(`${BASE_API_URL}/images/upload-multiple`, {
+      method: 'POST',
+      headers: {
+        Authorization: this.getToken() ? `Bearer ${this.getToken()}` : '',
+        'X-User-Id': localStorage.getItem('rr_logged_in_user') ? JSON.parse(localStorage.getItem('rr_logged_in_user') || '{}').id || '' : '',
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const payload = await this.parseResponse<any>(response);
+      const rawMessage = payload?.message || payload?.error || 'No se pudieron subir las imágenes.';
+      throw new Error(this.translateBackendErrorMessage(rawMessage));
+    }
+
+    const payload = await this.parseResponse<any>(response);
+    return Array.isArray(payload) ? payload : payload?.images || payload?.files || [];
   }
 
   static async deleteCategory(id: string): Promise<boolean> {
@@ -342,19 +388,23 @@ export class ApiClient {
     if (params?.categoryId) parts.push(`categoryId=${params.categoryId}`);
     const query = parts.length > 0 ? `?${parts.join('&')}` : '';
 
-    return this.request<Cabin[]>(`/cabins/search${query}`, { method: 'GET' });
+    return this.request<any[]>(`/cabins/search${query}`, { method: 'GET' }).then(list =>
+      Array.isArray(list) ? list.map(item => this.normalizeCabin(item)) : []
+    );
   }
 
   static async getCabinById(id: string): Promise<Cabin> {
-    return this.request<Cabin>(`/cabins/${id}`, { method: 'GET' });
+    return this.request<any>(`/cabins/${id}`, { method: 'GET' }).then(payload =>
+      this.normalizeCabin(payload)
+    );
   }
 
-  static async createCabin(cabin: Omit<Cabin, 'id'>): Promise<Cabin> {
-    return this.request<Cabin>('/cabins', {
+  static async createCabin(cabin: CreateCabinInput): Promise<Cabin> {
+    return this.request<any>('/cabins', {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(cabin),
-    });
+    }).then(payload => this.normalizeCabin(payload));
   }
 
   static async deleteCabin(id: string): Promise<boolean> {
